@@ -1,0 +1,862 @@
+{
+  "users": [
+    {
+      "id": "user-founder-admin",
+      "name": "القائد — أدمن ماڤيا",
+      "phone": "01000000000",
+      "passwordHash": "76edcac8fd85328fe093faf7cdc4e5da:7b48cf7a95cd0be3c5868ef0e140ce16d3e66f4b190e27917ed878cbfce628d92240b95127641c5d0f9238918c95c0c933cf1382ff19b001f277389a0ff17dee",
+      "year": 4,
+      "role": "admin",
+      "isProtected": true,
+      "points": 980,
+      "quizzesCompleted": 12,
+      "createdAt": "2026-11-15T20:08:10.408Z",
+      "adminRankId": "rank-super-admin"
+    },
+    {
+      "id": "user-std-1",
+      "name": "أحمد طارق المنسي",
+      "phone": "01011112222",
+      "passwordHash": "5ab269b9f536d1898ae25e8223145c5f:eaf6540f2586017901e8df7db9dba0265612b1cf26bac249ff878b0cf9e23d8fe9b6a4fc0e081dbdf8f768d6900cd4d3db4a9ec18b31df740af52fd54b4fa080",
+      "year": 4,
+      "role": "student",
+      "isProtected": false,
+      "points": 910,
+      "quizzesCompleted": 11,
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "user-std-2",
+      "name": "مريم حسام الدين",
+      "phone": "01022223333",
+      "passwordHash": "58c114b1ffb574215cac61bc927b752b:22e559d9ee7bec4b54a3f0b49b0511591e8dade6dc3c3fd89cc98763c5ae686e750e7994a095723ca1ffa66bdc92683893548376a53082ecabe6e9cf17af8303",
+      "year": 3,
+      "role": "student",
+      "isProtected": false,
+      "points": 840,
+      "quizzesCompleted": 9,
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "user-std-3",
+      "name": "يوسف خالد الشناوي",
+      "phone": "01033334444",
+      "passwordHash": "a6f2825c8150d8b96cfd71a32923c27b:d957454f54e13133c62fa8863352cfd0c1efda58ac13763126cc3f694ca66a80e4c2490873defd0449842d605b30ac9d8cad1439e414cfdd5c8998a217d05772",
+      "year": 2,
+      "role": "student",
+      "isProtected": false,
+      "points": 760,
+      "quizzesCompleted": 8,
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "user-std-4",
+      "name": "نورهان عبد الرحمن",
+      "phone": "01044445555",
+      "passwordHash": "841eedb7b360a4d670c07a39885b08f0:2801cf6769e8f301c00ff52b4c367c127731d79945984a7623cce14d87aa8c16fa57ad8096aa471fda55f71622514803c97074aad6065b7be2326a3ee9a95898",
+      "year": 1,
+      "role": "student",
+      "isProtected": false,
+      "points": 710,
+      "quizzesCompleted": 7,
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "user-std-5",
+      "name": "عمر محمد فتحي",
+      "phone": "01055556666",
+      "passwordHash": "07ce1d7ea3ff3e19cb425d6195daca09:fb53e3dca637c73b5d35f7b2f0aa51fc4db4bfd2fa584119f5b2c162435dbf00232a6fab681db5fec5f1c4ff5487b679d8881ac3f0711a7ff4bcd05c8fcc79f0",
+      "year": 3,
+      "role": "student",
+      "isProtected": false,
+      "points": 685,
+      "quizzesCompleted": 7,
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "user-std-6",
+      "name": "سلمى إيهاب نبيل",
+      "phone": "01066667777",
+      "passwordHash": "a7dd0728386406139b12809bcabe6999:8e827fecb76c8377bef95f35774fd46685fddc77c05e1aa8cc92c14be9b3b3ca78c1da0da58f8b8840cf2f5fd57f4ed9ad45b0f88cbf4910739dd1ed5593a2db",
+      "year": 1,
+      "role": "student",
+      "isProtected": false,
+      "points": 640,
+      "quizzesCompleted": 6,
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "8bff67231da1ab8efb573ae3458de0aa3c6cc73f5ef8e81b57addab66ea33b03",
+      "userId": "user-founder-admin",
+      "createdAt": "2026-11-15T20:08:12.994Z"
+    },
+    {
+      "token": "3ca5a13d221bb53df3e0022cf93998c8577777b7cd1492a1c518f0fba892b907",
+      "userId": "user-founder-admin",
+      "createdAt": "2026-11-15T20:35:15.750Z"
+    },
+    {
+      "token": "29193fce79533aafb512f469e04cdbc41525bc7217106db14fcb71b9d2003c1e",
+      "userId": "user-founder-admin",
+      "createdAt": "2026-11-15T20:51:27.892Z"
+    },
+    {
+      "token": "11dae9bf8e564b0d72b3be3895815c0aeb227a7d205d202f6e511b5d82103cab",
+      "userId": "user-std-1",
+      "createdAt": "2026-11-15T20:51:28.023Z"
+    },
+    {
+      "token": "4325b5cfcba17cda59ad28e7908fff92df29d1b609e979be5963c060da483601",
+      "userId": "user-founder-admin",
+      "createdAt": "2026-11-15T21:08:42.232Z"
+    },
+    {
+      "token": "5eb561e22cee9dfdc003afe69330c7b65ea262dca3be2d786f9c97a335feb8de",
+      "userId": "user-std-1",
+      "createdAt": "2026-11-15T21:08:42.322Z"
+    },
+    {
+      "token": "d8bc0013ee277589a9ffb02067b9088c1617a1d85bd3833ebe3e9d31f3213093",
+      "userId": "user-founder-admin",
+      "createdAt": "2026-11-15T21:22:04.542Z"
+    }
+  ],
+  "courses": [
+    {
+      "id": "course-gis-101",
+      "title": "مقدمة في نظم المعلومات الجغرافية (GIS)",
+      "code": "GIS-101",
+      "year": 1,
+      "track": "GIS",
+      "description": "الأسس النظرية والعملية لنظم المعلومات الجغرافية، أنواع البيانات المكانية (Vector & Raster)، وأنظمة الإحداثيات والمساقط.",
+      "instructor": "د. شريف عبد العزيز",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "course-prog-102",
+      "title": "أساسيات البرمجة وحل المشكلات بـ Python",
+      "code": "CS-102",
+      "year": 1,
+      "track": "Programming",
+      "description": "مدخل شامل للخوارزميات، هياكل البيانات الأساسية، والبرمجة بلغة بايثون كقاعدة للتطبيقات الهندسية والمكانية.",
+      "instructor": "م. كريم النجار",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "course-gis-201",
+      "title": "الاستشعار عن بُعد وتحليل المرئيات الفضائية",
+      "code": "RS-201",
+      "year": 2,
+      "track": "GIS",
+      "description": "تحليل صور الأقمار الصناعية، التصنيف الموجه وغير الموجه، ومؤشرات الغطاء النباتي NDVI باستخدام ArcGIS Pro و ENVI.",
+      "instructor": "د. هبة مصطفى",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "course-prog-202",
+      "title": "قواعد البيانات العلائقية والمكانية (SQL & PostGIS)",
+      "code": "DB-202",
+      "year": 2,
+      "track": "Programming",
+      "description": "تصميم قواعد البيانات، استعلامات SQL المتقدمة، وتخزين وتحليل الهندسات المكانية باستخدام PostgreSQL / PostGIS.",
+      "instructor": "م. طارق محمود",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "course-gis-301",
+      "title": "أتمتة التحليلات المكانية بـ ArcPy و PyQGIS",
+      "code": "GIS-301",
+      "year": 3,
+      "track": "GIS",
+      "description": "كتابة سكريبتات بايثون لأتمتة عمليات المعالجة الجغرافية Geoprocessing وبناء أدوات مخصصة داخل بيئات GIS.",
+      "instructor": "د. وائل علام",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "course-prog-302",
+      "title": "تطوير تطبيقات الويب التفاعلية (React & TypeScript)",
+      "code": "WEB-302",
+      "year": 3,
+      "track": "Programming",
+      "description": "بناء واجهات ويب حديثة، إدارة الحالة، والتكامل مع خرائط الويب التفاعلية Leaflet و Mapbox عبر REST APIs.",
+      "instructor": "م. زياد حسني",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "course-gis-401",
+      "title": "نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
+      "code": "GIS-401",
+      "year": 4,
+      "track": "GIS",
+      "description": "نشر الخدمات المكانية GeoServer، تحليل الشبكات Network Analysis، وتطبيقات المدن الذكية ومشاريع التخرج.",
+      "instructor": "أ.د. مجدي سليمان",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "course-prog-402",
+      "title": "هندسة البرمجيات والذكاء الاصطناعي الجغرافي (GeoAI)",
+      "code": "AI-402",
+      "year": 4,
+      "track": "Programming",
+      "description": "توظيف نماذج التعلم العميق في استخراج المعالم من المرئيات الفضائية وبناء أنظمة برمجية قابلة للتوسع.",
+      "instructor": "د. أميرة شوقي",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    }
+  ],
+  "summaries": [
+    {
+      "id": "sum-1",
+      "courseId": "course-gis-101",
+      "title": "ملخص الفصل الأول: مقارنة Vector مقابل Raster وأنظمة الإحداثيات",
+      "description": "ملخص مركز يوضح الفروق الجوهرية بين البيانات الخطية والشبكية، أنظمة WGS84 و UTM، وأخطاء الإسقاط الخرائطي الشائعة.",
+      "createdBy": "القائد — أدمن ماڤيا",
+      "createdAt": "2026-11-15T20:08:10.408Z",
+      "viewedBy": [
+        "user-std-1"
+      ]
+    },
+    {
+      "id": "sum-2",
+      "courseId": "course-prog-102",
+      "title": "ملخص هياكل البيانات في Python (Lists, Dicts, Sets)",
+      "description": "أمثلة عملية مختصرة على الحلقات التكرارية والدوال وهياكل البيانات مع مسائل محلولة للامتحان.",
+      "createdBy": "القائد — أدمن ماڤيا",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "sum-3",
+      "courseId": "course-gis-401",
+      "title": "دليل مشروع التخرج: إعداد GeoServer وربط الطبقات بـ Web GIS",
+      "description": "خطوات عملية كاملة لرفع طبقات Shapefile و GeoJSON ونشر خدمات WMS / WFS.",
+      "createdBy": "القائد — أدمن ماڤيا",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    }
+  ],
+  "quizzes": [
+    {
+      "id": "quiz-gis-101-a",
+      "courseId": "course-gis-101",
+      "title": "اختبار شامل: أساسيات GIS والإسقاط الخرائطي",
+      "durationMinutes": 15,
+      "pointsPerQuestion": 25,
+      "createdAt": "2026-11-15T20:08:10.408Z",
+      "questions": [
+        {
+          "id": "q1",
+          "question": "أي نوع من البيانات المكانية يمثل الظواهر المستمرة مثل الارتفاعات ودرجات الحرارة بأفضل دقة؟",
+          "options": [
+            "بيانات Vector (النقاط)",
+            "بيانات Raster (الشبكية)",
+            "جداول CSV فقط",
+            "بيانات CAD الخطية"
+          ],
+          "correctIndex": 1,
+          "explanation": "البيانات الشبكية Raster تعتمد على خلايا متجاورة (Pixels) مما يجعلها مثالية لتمثيل الظواهر المتصلة."
+        },
+        {
+          "id": "q2",
+          "question": "ما هو المرجع الجيوديسي العالمي القياسي المستخدم في أجهزة GPS وبيانات WGS84؟",
+          "options": [
+            "NAD27",
+            "WGS 1984",
+            "ED50",
+            "Helmert 1906"
+          ],
+          "correctIndex": 1,
+          "explanation": "نظام WGS84 هو المرجع العالمي المعتمد لنظام تحديد المواقع العالمي GPS."
+        },
+        {
+          "id": "q3",
+          "question": "أي أداة تحليل مكاني تُستخدم لإنشاء نطاق مسافة محدد حول طريق أو نهر؟",
+          "options": [
+            "Clip",
+            "Buffer",
+            "Dissolve",
+            "Intersect"
+          ],
+          "correctIndex": 1,
+          "explanation": "أداة Buffer تنشئ مضلعاً حول المعلم بمسافة محددة لقياس التأثير المكاني."
+        },
+        {
+          "id": "q4",
+          "question": "تُقاس الإحداثيات في نظام UTM (Universal Transverse Mercator) بوحدة:",
+          "options": [
+            "الدرجات العشرية",
+            "المتر",
+            "الراديان",
+            "الدقائق القوسية"
+          ],
+          "correctIndex": 1,
+          "explanation": "نظام UTM هو نظام إسقاط متري مستوٍ يقيس المسافات بالمتر شرقاً وشمالاً."
+        }
+      ]
+    },
+    {
+      "id": "quiz-prog-102-a",
+      "courseId": "course-prog-102",
+      "title": "اختبار أساسيات البرمجة وهياكل البيانات في Python",
+      "durationMinutes": 12,
+      "pointsPerQuestion": 25,
+      "createdAt": "2026-11-15T20:08:10.408Z",
+      "questions": [
+        {
+          "id": "pq1",
+          "question": "ما هي الكلمة المفتاحية لتعريف دالة Function في لغة Python؟",
+          "options": [
+            "function",
+            "def",
+            "func",
+            "define"
+          ],
+          "correctIndex": 1,
+          "explanation": "في Python تُعرّف الدوال باستخدام الكلمة المفتاحية def."
+        },
+        {
+          "id": "pq2",
+          "question": "أي بنية بيانات في Python تُخزّن القيم على هيئة أزواج (Key: Value)؟",
+          "options": [
+            "Tuple",
+            "List",
+            "Dictionary",
+            "Set"
+          ],
+          "correctIndex": 2,
+          "explanation": "القاموس Dictionary يُخزن البيانات بنظام المفتاح والقيمة."
+        },
+        {
+          "id": "pq3",
+          "question": "ما ناتج التعبير التالي في بايثون: len([10, 20, 30, 40])؟",
+          "options": [
+            "3",
+            "4",
+            "40",
+            "خطأ برمجي"
+          ],
+          "correctIndex": 1,
+          "explanation": "الدالة len تُرجع عدد العناصر في القائمة وهو 4."
+        }
+      ]
+    },
+    {
+      "id": "quiz-gis-401-a",
+      "courseId": "course-gis-401",
+      "title": "اختبار Web GIS والتحليل الشبكي المتقدم",
+      "durationMinutes": 15,
+      "pointsPerQuestion": 30,
+      "createdAt": "2026-11-15T20:08:10.408Z",
+      "questions": [
+        {
+          "id": "wq1",
+          "question": "ما هي الصيغة القياسية المبنية على JSON لتبادل البيانات المكانية على الويب؟",
+          "options": [
+            "GeoTIFF",
+            "GeoJSON",
+            "KML Binary",
+            "DBF"
+          ],
+          "correctIndex": 1,
+          "explanation": "GeoJSON هي الصيغة المفتوحة المعتمدة في تطبيقات خرائط الويب مثل Leaflet و Mapbox."
+        },
+        {
+          "id": "wq2",
+          "question": "أي خدمة OGC تُرجع البيانات الوصفية والهندسية القابلة للتعديل والاستعلام كمعالم؟",
+          "options": [
+            "WMS",
+            "WFS",
+            "WMTS",
+            "TMS"
+          ],
+          "correctIndex": 1,
+          "explanation": "خدمة WFS (Web Feature Service) تتيح الوصول المباشر للهندسة والبيانات الوصفية وليس مجرد صور."
+        },
+        {
+          "id": "wq3",
+          "question": "يعتمد تحليل إيجاد أقصر مسار Shortest Path في شبكات الطرق غالباً على خوارزمية:",
+          "options": [
+            "K-Means",
+            "Dijkstra",
+            "NDVI",
+            "Kriging"
+          ],
+          "correctIndex": 1,
+          "explanation": "خوارزمية Dijkstra هي الأساس الكلاسيكي لإيجاد أقصر مسار موزون في الشبكات."
+        }
+      ]
+    }
+  ],
+  "quizSubmissions": [
+    {
+      "id": "sub-a532abbd-6acb-4534-a922-15a61c3c56e0",
+      "quizId": "quiz-01434821-bf5f-4698-971a-3047792a47ce",
+      "courseId": "course-gis-101",
+      "userId": "user-std-1",
+      "score": 20,
+      "maxScore": 40,
+      "correctCount": 1,
+      "totalQuestions": 2,
+      "timeSpentSeconds": 42,
+      "breakdown": [
+        {
+          "questionId": "q-8100ed43-4b7f-425f-835e-521ec3fbacd4",
+          "question": "Q1?",
+          "options": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "selectedIndex": 1,
+          "correctIndex": 1,
+          "isCorrect": true,
+          "explanation": "B is correct"
+        },
+        {
+          "questionId": "q-e1ed32a9-2f94-449e-a6ed-256dee97df97",
+          "question": "Q2?",
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "selectedIndex": 0,
+          "correctIndex": 2,
+          "isCorrect": false,
+          "explanation": "3 is correct"
+        }
+      ],
+      "submittedAt": "2026-11-15T21:08:42.440Z"
+    }
+  ],
+  "learningLinks": [
+    {
+      "id": "learn-1",
+      "title": "دورة تعلم QGIS الاحترافية كاملة من الصفر",
+      "url": "https://www.youtube.com/results?search_query=QGIS+tutorial+arabic",
+      "type": "youtube",
+      "category": "GIS",
+      "year": 0,
+      "description": "سلسلة شروحات عملية لتعلم واجهة QGIS وبناء الخرائط وتحليل الطبقات.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "learn-2",
+      "title": "أكاديمية Esri التدريبية الرسمية (Esri Training)",
+      "url": "https://www.esri.com/training/",
+      "type": "platform",
+      "category": "GIS",
+      "year": 0,
+      "description": "مسارات تعليمية مجانية ومعتمدة في ArcGIS Pro والتحليل المكاني.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "learn-3",
+      "title": "تعلّم Python للبرمجة والبيانات — شروحات يوتيوب",
+      "url": "https://www.youtube.com/results?search_query=python+full+course+arabic",
+      "type": "youtube",
+      "category": "Programming",
+      "year": 1,
+      "description": "كورس بايثون تأسيسي يغطي المتغيرات والدوال وهياكل البيانات والمشاريع.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "learn-4",
+      "title": "خرائط التعلم البرمجية (roadmap.sh)",
+      "url": "https://roadmap.sh/",
+      "type": "platform",
+      "category": "Programming",
+      "year": 0,
+      "description": "دليل تفاعلي متكامل لمسارات الويب، الباك إند، قواعد البيانات، والذكاء الاصطناعي.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "learn-5",
+      "title": "موسوعة مطوري الويب MDN Web Docs",
+      "url": "https://developer.mozilla.org/ar/",
+      "type": "platform",
+      "category": "Programming",
+      "year": 3,
+      "description": "المرجع الأساسي لتقنيات HTML و CSS و JavaScript وواجهات البرمجة.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "learn-6",
+      "title": "سلسلة الاستشعار عن بُعد وتحليل المرئيات الفضائية",
+      "url": "https://www.youtube.com/results?search_query=remote+sensing+gis+arabic",
+      "type": "youtube",
+      "category": "GIS",
+      "year": 2,
+      "description": "تطبيقات عملية على صور Landsat و Sentinel ومؤشرات الغطاء النباتي.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    }
+  ],
+  "groupLinks": [
+    {
+      "id": "grp-general",
+      "title": "جروب ماڤيا العام — GIS والبرمجة",
+      "url": "https://t.me/",
+      "platform": "Telegram",
+      "year": 0,
+      "description": "الملتقى الرئيسي لجميع الدفعات لتبادل الفرص والمصادر والمشاريع المشتركة.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "grp-y1",
+      "title": "جروب دفعة الفرقة الأولى",
+      "url": "https://chat.whatsapp.com/",
+      "platform": "WhatsApp",
+      "year": 1,
+      "description": "متابعة محاضرات وسكاشن الفرقة الأولى وتوزيع الملخصات الأسبوعية.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "grp-y2",
+      "title": "جروب دفعة الفرقة الثانية",
+      "url": "https://t.me/",
+      "platform": "Telegram",
+      "year": 2,
+      "description": "نقاشات مواد الاستشعار عن بُعد وقواعد البيانات المكانية.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "grp-y3",
+      "title": "جروب دفعة الفرقة الثالثة",
+      "url": "https://t.me/",
+      "platform": "Telegram",
+      "year": 3,
+      "description": "تنسيق مشاريع الويب والأتمتة بـ ArcPy و PyQGIS.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "grp-y4",
+      "title": "جروب دفعة الفرقة الرابعة — مشاريع التخرج",
+      "url": "https://discord.com/",
+      "platform": "Discord",
+      "year": 4,
+      "description": "تجمع خريجي ماڤيا لمناقشة Web GIS ومشاريع التخرج والتدريب المهني.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    }
+  ],
+  "chatMessages": [
+    {
+      "id": "msg-1",
+      "room": "general",
+      "userId": "user-founder-admin",
+      "userName": "القائد — أدمن ماڤيا",
+      "userRole": "admin",
+      "userYear": 4,
+      "text": "أهلاً بكم في منصة ماڤيا! هذه الساحة مخصصة للتواصل الفوري بين طلاب جميع الدفعات في GIS والبرمجة.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    },
+    {
+      "id": "msg-2",
+      "room": "year-4",
+      "userId": "user-std-1",
+      "userName": "أحمد طارق المنسي",
+      "userRole": "student",
+      "userYear": 4,
+      "text": "شباب دفعة رابعة، ملخص إعداد GeoServer موجود في قسم الكورسات وممتاز جداً لمشاريع التخرج.",
+      "createdAt": "2026-11-15T20:08:10.408Z"
+    }
+  ],
+  "gpaTables": {},
+  "studentProgress": {
+    "user-founder-admin": {
+      "enrolledCourseIds": [
+        "course-gis-401",
+        "course-prog-402"
+      ],
+      "completedSummaryIds": [],
+      "lastLesson": {
+        "courseId": "course-gis-401",
+        "courseTitle": "نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
+        "lessonTitle": "دليل مشروع التخرج: إعداد GeoServer وربط الطبقات بـ Web GIS",
+        "summaryId": "sum-3",
+        "updatedAt": "2026-11-15T20:35:15.765Z"
+      },
+      "studyMinutes": 559,
+      "tasks": [
+        {
+          "id": "task-6b78b37a-af45-4b6b-9635-49ad6ddb0a91",
+          "title": "مراجعة ملخصات مادة نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
+          "dueDate": "2026-11-18",
+          "courseTitle": "نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
+          "type": "task",
+          "completed": false,
+          "createdAt": "2026-11-15T20:35:15.765Z"
+        },
+        {
+          "id": "task-c4f689a9-5af2-44a1-9c17-679f99afa7bc",
+          "title": "الاستعداد للاختبار الشامل القادم",
+          "dueDate": "2026-11-21",
+          "courseTitle": "نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
+          "type": "exam",
+          "completed": false,
+          "createdAt": "2026-11-15T20:35:15.765Z"
+        }
+      ]
+    },
+    "user-std-1": {
+      "enrolledCourseIds": [
+        "course-gis-101",
+        "course-gis-401",
+        "course-prog-402"
+      ],
+      "completedSummaryIds": [],
+      "lastLesson": {
+        "courseId": "course-gis-101",
+        "courseTitle": "مقدمة في نظم المعلومات الجغرافية (GIS)",
+        "lessonTitle": "اختبار: Automated Bank Quiz",
+        "updatedAt": "2026-11-15T21:08:42.441Z"
+      },
+      "studyMinutes": 450,
+      "tasks": [
+        {
+          "id": "task-2458fb6d-72de-4bcb-828d-99d7d5ca2efb",
+          "title": "مراجعة ملخصات مادة نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
+          "dueDate": "2026-11-18",
+          "courseTitle": "نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
+          "type": "task",
+          "completed": false,
+          "createdAt": "2026-11-15T20:51:28.099Z"
+        },
+        {
+          "id": "task-cb88e117-9ae6-4c46-a224-b42c0466e8a3",
+          "title": "الاستعداد للاختبار الشامل القادم",
+          "dueDate": "2026-11-21",
+          "courseTitle": "نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
+          "type": "exam",
+          "completed": false,
+          "createdAt": "2026-11-15T20:51:28.099Z"
+        }
+      ]
+    }
+  },
+  "folders": [],
+  "announcements": [],
+  "analytics": {
+    "totalVisits": 0,
+    "dailyCounts": {},
+    "visitors": {
+      "verify-key-1": {
+        "visitorKey": "verify-key-1",
+        "lastVisitAt": "2026-11-15T20:51:28.033Z",
+        "visitCount": 0
+      },
+      "user-founder-admin": {
+        "visitorKey": "user-founder-admin",
+        "userId": "user-founder-admin",
+        "userName": "القائد — أدمن ماڤيا",
+        "userYear": 4,
+        "lastVisitAt": "2026-11-15T21:05:31.905Z",
+        "visitCount": 0
+      },
+      "v-e7fd93e6-7108-4b4d-9c9f-3b4b76237cad": {
+        "visitorKey": "v-e7fd93e6-7108-4b4d-9c9f-3b4b76237cad",
+        "lastVisitAt": "2026-11-15T21:06:42.883Z",
+        "visitCount": 0
+      }
+    }
+  },
+  "platformConfig": {
+    "whatsappNumber": "01159637247",
+    "telegramUrl": "https://t.me/+201159637247"
+  },
+  "notifications": [
+    {
+      "id": "notif-f85bbb8e-4025-4440-9c86-46f139827a8e",
+      "title": "اختبار جديد في مقدمة في نظم المعلومات الجغرافية (GIS)",
+      "message": "Automated Bank Quiz (10 دقيقة · 3 سؤال في البنك).",
+      "type": "exam",
+      "targetSection": "courses",
+      "year": 1,
+      "readBy": [],
+      "createdBy": "القائد — أدمن ماڤيا",
+      "createdAt": "2026-11-15T21:08:42.434Z"
+    },
+    {
+      "id": "notif-welcome-mvia",
+      "title": "أهلاً بكم في التحديث الجديد لمنصة MVIA",
+      "message": "تم إضافة مشغل المحاضرات الاحترافي في قسم Learning ونظام الامتحانات المتطور ببنك الأسئلة العشوائي داخل كل مجلد.",
+      "type": "general",
+      "targetSection": "learning",
+      "year": 0,
+      "readBy": [
+        "user-std-1"
+      ],
+      "createdBy": "القائد — أدمن MVIA",
+      "createdAt": "2026-11-15T21:08:30.152Z"
+    },
+    {
+      "id": "notif-exam-mid",
+      "title": "تنبيه امتحان: مراجعة أساسيات GIS متاحة الآن",
+      "message": "يمكنكم الآن دخول مجلد المراجعة الشاملة في مادة GIS-101 وتجربة الاختبار العشوائي بالمؤقت وتحليل الأخطاء.",
+      "type": "exam",
+      "targetSection": "courses",
+      "year": 0,
+      "readBy": [
+        "user-std-1"
+      ],
+      "createdBy": "القائد — أدمن MVIA",
+      "createdAt": "2026-11-15T21:08:30.152Z"
+    }
+  ],
+  "lectures": [
+    {
+      "id": "lec-gis-101",
+      "title": "المحاضرة التمهيدية: مدخل إلى نظم المعلومات الجغرافية (GIS) وتطبيقاتها الهندسية",
+      "description": "شرح تفاعلي في مشغل MVIA الاحترافي مع دعم حفظ مكان التوقف تلقائياً، سرعات التشغيل، الترجمة القابلة للإغلاق، والملاحظات المرتبطة بالوقت.",
+      "category": "GIS",
+      "year": 0,
+      "instructor": "م. محمود حيدر يوسف — إدارة MVIA",
+      "videoUrl": "/assets/mvia-gis-intro.mp4",
+      "subtitleUrl": "/assets/mvia-gis-intro.vtt",
+      "attachmentUrl": "/assets/mvia-gis-intro.vtt",
+      "attachmentName": "MVIA-GIS-Transcript.vtt",
+      "attachmentSize": 980,
+      "allowDownload": true,
+      "durationSeconds": 40,
+      "createdBy": "القائد — أدمن MVIA",
+      "createdAt": "2026-11-15T21:08:30.694Z"
+    }
+  ],
+  "lectureProgress": {
+    "user-std-1": {
+      "lec-gis-101": {
+        "lastPositionSeconds": 18,
+        "playbackRate": 1.5,
+        "updatedAt": "2026-11-15T21:08:42.408Z",
+        "notes": []
+      }
+    }
+  },
+  "supportTickets": [],
+  "errorLogs": [
+    {
+      "id": "err-41c0a630-f845-43ae-bf16-85becc9e34c6",
+      "source": "client",
+      "message": "WebSocket closed without opened.",
+      "path": "/",
+      "stack": "Error: WebSocket closed without opened.\n    at WebSocket.<anonymous> (https://ais-dev-lseb3ikjgtmca4424u3wzz-1008943062210.europe-west2.run.app/@vite/client:234:30)",
+      "createdAt": "2026-11-15T23:31:47.104Z"
+    }
+  ],
+  "adminAuditLogs": [],
+  "maintenance": {
+    "enabled": false,
+    "message": "نقوم حالياً بأعمال صيانة وتحديثات لتحسين أداء المنصة. سنعود قريباً."
+  },
+  "adminRanks": [
+    {
+      "id": "rank-super-admin",
+      "slug": "super_admin",
+      "nameAr": "المدير العام",
+      "nameEn": "Super Admin",
+      "description": "القيادة العليا للمنصة مع كامل الصلاحيات وإدارة الرتب وتوزيع المسؤولين.",
+      "badgeIcon": "crown",
+      "badgeColor": "gold",
+      "displayOrder": 1,
+      "isSuperAdminRank": true,
+      "isVisibleInSupport": true,
+      "permissions": [
+        "manage_ranks",
+        "manage_officials",
+        "manage_courses",
+        "manage_quizzes",
+        "manage_learning",
+        "manage_community",
+        "manage_students",
+        "manage_support",
+        "view_sensitive_data"
+      ],
+      "updatedAt": "2026-11-16T17:39:50.272Z"
+    },
+    {
+      "id": "rank-deputy-director",
+      "slug": "deputy_director",
+      "nameAr": "نائب المدير العام",
+      "nameEn": "Deputy General Manager",
+      "description": "ينوب عن المدير العام في الإشراف والتشغيل وفق الصلاحيات المفوضة فقط.",
+      "badgeIcon": "medal",
+      "badgeColor": "silver",
+      "displayOrder": 2,
+      "isSuperAdminRank": false,
+      "isVisibleInSupport": true,
+      "permissions": [],
+      "updatedAt": "2026-11-16T17:39:50.272Z"
+    },
+    {
+      "id": "rank-tech-director",
+      "slug": "tech_director",
+      "nameAr": "مدير النظام والتقنية",
+      "nameEn": "Systems & Tech Director",
+      "description": "مسؤول البنية التقنية والأنظمة والأعطال الفنية.",
+      "badgeIcon": "cpu",
+      "badgeColor": "sky",
+      "displayOrder": 3,
+      "isSuperAdminRank": false,
+      "isVisibleInSupport": true,
+      "permissions": [],
+      "updatedAt": "2026-11-16T17:39:50.272Z"
+    },
+    {
+      "id": "rank-academic-director",
+      "slug": "academic_director",
+      "nameAr": "مدير الشؤون التعليمية",
+      "nameEn": "Academic Affairs Director",
+      "description": "الإشراف على المناهج والمسارات التعليمية والمواد الدراسية.",
+      "badgeIcon": "graduation-cap",
+      "badgeColor": "emerald",
+      "displayOrder": 4,
+      "isSuperAdminRank": false,
+      "isVisibleInSupport": true,
+      "permissions": [],
+      "updatedAt": "2026-11-16T17:39:50.272Z"
+    },
+    {
+      "id": "rank-student-affairs",
+      "slug": "student_affairs",
+      "nameAr": "مسؤول شؤون الطلاب",
+      "nameEn": "Student Affairs Officer",
+      "description": "متابعة حسابات الطلاب واستفسارات الفرق الدراسية.",
+      "badgeIcon": "users",
+      "badgeColor": "violet",
+      "displayOrder": 5,
+      "isSuperAdminRank": false,
+      "isVisibleInSupport": true,
+      "permissions": [],
+      "updatedAt": "2026-11-16T17:39:50.272Z"
+    },
+    {
+      "id": "rank-tech-support",
+      "slug": "tech_support",
+      "nameAr": "مسؤول الدعم الفني",
+      "nameEn": "Technical Support Officer",
+      "description": "استقبال البلاغات ومساعدة الطلاب في مشاكل الدخول والاستخدام.",
+      "badgeIcon": "headset",
+      "badgeColor": "amber",
+      "displayOrder": 6,
+      "isSuperAdminRank": false,
+      "isVisibleInSupport": true,
+      "permissions": [],
+      "updatedAt": "2026-11-16T17:39:50.272Z"
+    },
+    {
+      "id": "rank-exams-content",
+      "slug": "exams_content",
+      "nameAr": "مسؤول الاختبارات والمحتوى",
+      "nameEn": "Exams & Content Officer",
+      "description": "متابعة بنوك الأسئلة والاختبارات والملخصات الدراسية.",
+      "badgeIcon": "clipboard-check",
+      "badgeColor": "rose",
+      "displayOrder": 7,
+      "isSuperAdminRank": false,
+      "isVisibleInSupport": true,
+      "permissions": [],
+      "updatedAt": "2026-11-16T17:39:50.272Z"
+    }
+  ],
+  "adminOfficials": []
+}

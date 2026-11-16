@@ -1,0 +1,1 @@
+function e(e){return!e||e.role!==`admin`?!1:!!(e.isSuperAdmin||e.adminRankId===`rank-super-admin`||e.isProtected&&!e.adminRankId)}function t(t,n){return!t||t.role!==`admin`?!1:e(t)?!0:Array.isArray(t.permissions)&&t.permissions.includes(n)}function n(e,n){return n.some(n=>t(e,n))}export{n,e as r,t};
