@@ -1,0 +1,10 @@
+{
+  "name": "منصة ماڤيا التعليمية",
+  "description": "منصة ماڤيا التعليمية لجميع الدفعات من الفرقة الأولى للرابعة — مواد دراسية، ملخصات PDF، اختبارات شاملة، مسارات GIS والبرمجة، حاسبة GPA، ومجتمع تفاعلي.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
