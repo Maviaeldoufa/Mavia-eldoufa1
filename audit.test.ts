@@ -673,7 +673,34 @@ describe('MVIA Production-Readiness Audit Suite', () => {
     assert.ok((lockedAttempt.data.retryAfterSeconds || 0) > 0);
   });
 
-  test('12. Personal data management, export, admin self-delete guard & student self-deletion', async () => {
+  test('12. Personal data management, credential edit lock for students, export, admin self-delete guard & student self-deletion', async () => {
+    // Student can update name and year, but NOT email or password after registration
+    const lockedPasswordAttempt = await api<{ error: string }>(
+      '/api/account/profile',
+      {
+        method: 'PATCH',
+        token: studentToken,
+        body: JSON.stringify({
+          name: 'Student Audit Updated',
+          currentPassword: 'password123',
+          newPassword: 'newPassword123',
+        }),
+      }
+    );
+    assert.equal(lockedPasswordAttempt.status, 403);
+
+    const lockedEmailAttempt = await api<{ error: string }>(
+      '/api/account/profile',
+      {
+        method: 'PATCH',
+        token: studentToken,
+        body: JSON.stringify({
+          email: 'hacked.student@test.edu',
+        }),
+      }
+    );
+    assert.equal(lockedEmailAttempt.status, 403);
+
     const profileUpdate = await api<{ user: { name: string; year: number } }>(
       '/api/account/profile',
       {
@@ -682,14 +709,36 @@ describe('MVIA Production-Readiness Audit Suite', () => {
         body: JSON.stringify({
           name: 'Student Audit Updated',
           year: 2,
-          currentPassword: 'password123',
-          newPassword: 'newPassword123',
         }),
       }
     );
     assert.equal(profileUpdate.status, 200);
     assert.equal(profileUpdate.data.user.name, 'Student Audit Updated');
     assert.equal(profileUpdate.data.user.year, 2);
+
+    // Super Admin updates student's password cleanly, revoking prior student session
+    const superAdminReset = await api<{ user: { id: string } }>(
+      `/api/admin/users/${studentId}/credentials`,
+      {
+        method: 'PATCH',
+        token: adminToken,
+        body: JSON.stringify({
+          newPassword: 'newPassword123',
+        }),
+      }
+    );
+    assert.equal(superAdminReset.status, 200);
+
+    // Student signs back in with the new password set by Super Admin
+    const reLogin = await api<{ token: string }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        identifier: 'student.audit@test.edu',
+        password: 'newPassword123',
+      }),
+    });
+    assert.equal(reLogin.status, 200);
+    studentToken = reLogin.data.token;
 
     const exportRes = await fetch(`${BASE_URL}/api/account/export`, {
       headers: { Authorization: `Bearer ${studentToken}` },
@@ -1090,180 +1139,466 @@ describe('MVIA Production-Readiness Audit Suite', () => {
     assert.ok(mp3Res.headers.get('content-type')?.includes('audio/mpeg'));
   });
 
-  test('15. Course folder 4-section structure: Course Book & simplified Assignments (title-only + text/image/video/pdf)', async () => {
-    // Register a fresh student token for student read & RBAC checks (earlier student account was self-deleted in test 12)
-    const folderStudentReg = await api<{ token: string }>('/api/auth/register', {
+  test('15. 7-Person Admin Support Team Selection & Admin User Profile Notes (Reaction-Only)', async () => {
+    // Create two isolated test students (target + bystander) + extra users for 7-seat test
+    const createdStudentIds: string[] = [];
+    const tokensByIdx: string[] = [];
+    for (let i = 1; i <= 8; i++) {
+      const res = await api<{ user: { id: string } }>('/api/admin/users', {
+        method: 'POST',
+        token: adminToken,
+        body: JSON.stringify({
+          name: `Support & Notes User ${i}`,
+          email: `sup.notes.${i}@test.edu`,
+          phone: `0177777770${i}`,
+          password: 'userPass123',
+          year: ((i - 1) % 4) + 1,
+          role: 'student',
+        }),
+      });
+      assert.equal(res.status, 201);
+      createdStudentIds.push(res.data.user.id);
+
+      if (i <= 2) {
+        const loginRes = await api<{ token: string }>('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            identifier: `sup.notes.${i}@test.edu`,
+            password: 'userPass123',
+          }),
+        });
+        assert.equal(loginRes.status, 200);
+        tokensByIdx.push(loginRes.data.token);
+      }
+    }
+
+    const targetUserId = createdStudentIds[0];
+    const targetToken = tokensByIdx[0];
+    const bystanderToken = tokensByIdx[1];
+
+    // --- Part A: 7-Person Admin-Selected Support Team ---
+    // Non-admin blocked from assigning support team
+    const unauthAssign = await api('/api/admin/support-team', {
+      method: 'POST',
+      token: targetToken,
+      body: JSON.stringify({
+        userId: targetUserId,
+        displayName: 'Unauthorized',
+        whatsappNumber: '01012345678',
+      }),
+    });
+    assert.equal(unauthAssign.status, 403);
+
+    const assignedMemberIds: string[] = [];
+    for (let slot = 1; slot <= 7; slot++) {
+      // Test slot 7 assigned without WhatsApp first, then added later by Admin
+      const assignRes = await api<{ member: { id: string; slotNumber: number; userId: string } }>(
+        '/api/admin/support-team',
+        {
+          method: 'POST',
+          token: adminToken,
+          body: JSON.stringify({
+            userId: createdStudentIds[slot - 1],
+            slotNumber: slot,
+            displayName: `عضو دعم #${slot}`,
+            specialty: `دعم تقني مقعد ${slot}`,
+            ...(slot === 7 ? {} : { whatsappNumber: `0102222330${slot}` }),
+            isActive: true,
+          }),
+        }
+      );
+      assert.equal(assignRes.status, 201);
+      assert.equal(assignRes.data.member.slotNumber, slot);
+      assignedMemberIds.push(assignRes.data.member.id);
+    }
+
+    // 8th auto-slot assignment rejected once all 7 seats are filled
+    const eighthAutoAssign = await api('/api/admin/support-team', {
+      method: 'POST',
+      token: adminToken,
+      body: JSON.stringify({
+        userId: createdStudentIds[7],
+        displayName: 'عضو ثامن مرفوض',
+        whatsappNumber: '01022223399',
+      }),
+    });
+    assert.equal(eighthAutoAssign.status, 400);
+
+    // Public student directory returns Leader (للضرورة) & all 7 members without exposing raw phone numbers
+    const dirRes = await api<{
+      leader: {
+        titleAr: string;
+        urgencyNoteAr: string;
+        hasWhatsapp: boolean;
+        whatsappUrl?: string;
+        whatsappNumber?: string;
+      };
+      supportTeam: Array<{
+        id: string;
+        slotNumber: number;
+        displayName: string;
+        hasWhatsapp: boolean;
+        whatsappUrl?: string;
+        whatsappNumber?: string;
+      }>;
+    }>('/api/support/directory', { token: targetToken });
+    assert.equal(dirRes.status, 200);
+    assert.equal(dirRes.data.leader.titleAr, 'ليدر المنصة');
+    assert.equal(dirRes.data.leader.urgencyNoteAr, 'للضرورة');
+    assert.equal(dirRes.data.leader.whatsappNumber, undefined);
+    assert.equal(dirRes.data.supportTeam.length, 7);
+    for (const m of dirRes.data.supportTeam) {
+      assert.equal(m.whatsappNumber, undefined, 'Raw WhatsApp number must never be exposed in directory');
+      if (m.slotNumber === 7) {
+        assert.equal(m.hasWhatsapp, false);
+        assert.equal(m.whatsappUrl, undefined);
+      } else {
+        assert.equal(m.hasWhatsapp, true);
+        assert.ok(m.whatsappUrl?.startsWith('https://wa.me/'));
+      }
+    }
+
+    // Admin adds WhatsApp number later for slot 7 + updates Platform Leader WhatsApp
+    const nonAdminLeaderPatch = await api('/api/admin/support/leader-whatsapp', {
+      method: 'PATCH',
+      token: targetToken,
+      body: JSON.stringify({ whatsappNumber: '01055556666' }),
+    });
+    assert.equal(nonAdminLeaderPatch.status, 403);
+
+    const adminLeaderPatch = await api<{ ok: boolean; whatsappUrl: string }>(
+      '/api/admin/support/leader-whatsapp',
+      {
+        method: 'PATCH',
+        token: adminToken,
+        body: JSON.stringify({ whatsappNumber: '01055556666' }),
+      }
+    );
+    assert.equal(adminLeaderPatch.status, 200);
+    assert.ok(adminLeaderPatch.data.whatsappUrl.startsWith('https://wa.me/'));
+
+    const leaderLinkRes = await api<{ whatsappUrl: string; urgencyNote: string }>(
+      '/api/support/leader/whatsapp-link',
+      { method: 'POST', token: targetToken }
+    );
+    assert.equal(leaderLinkRes.status, 200);
+    assert.equal(leaderLinkRes.data.urgencyNote, 'للضرورة');
+    assert.ok(leaderLinkRes.data.whatsappUrl.startsWith('https://wa.me/'));
+
+    // Clicking a support team member resolves secure WhatsApp URL
+    const waLinkRes = await api<{ whatsappUrl: string; slotNumber: number }>(
+      `/api/support/team/${assignedMemberIds[0]}/whatsapp-link`,
+      { method: 'POST', token: targetToken }
+    );
+    assert.equal(waLinkRes.status, 200);
+    assert.ok(waLinkRes.data.whatsappUrl.startsWith('https://wa.me/'));
+    assert.equal(waLinkRes.data.slotNumber, 1);
+
+    // Admin adds number & later updates/removes slot 7 member
+    const patchSupportRes = await api<{ member: { isActive: boolean; specialty?: string } }>(
+      `/api/admin/support-team/${assignedMemberIds[6]}`,
+      {
+        method: 'PATCH',
+        token: adminToken,
+        body: JSON.stringify({ isActive: false, specialty: 'تخصص محدث', whatsappNumber: '01033334444' }),
+      }
+    );
+    assert.equal(patchSupportRes.status, 200);
+    assert.equal(patchSupportRes.data.member.isActive, false);
+
+    const removeSupportRes = await api(`/api/admin/support-team/${assignedMemberIds[6]}`, {
+      method: 'DELETE',
+      token: adminToken,
+    });
+    assert.equal(removeSupportRes.status, 200);
+
+    // --- Part B: Admin Notes on User Profile & Reaction-Only User Interaction ---
+    const nonAdminNotePost = await api(`/api/admin/users/${targetUserId}/notes`, {
+      method: 'POST',
+      token: bystanderToken,
+      body: JSON.stringify({ content: 'Unauthorized note' }),
+    });
+    assert.equal(nonAdminNotePost.status, 403);
+
+    const createNoteRes = await api<{
+      note: { id: string; targetUserId: string; content: string; reactions: unknown[] };
+    }>(`/api/admin/users/${targetUserId}/notes`, {
+      method: 'POST',
+      token: adminToken,
+      body: JSON.stringify({ content: 'أحسنت في المذاكرة هذا الأسبوع، استمر!' }),
+    });
+    assert.equal(createNoteRes.status, 201);
+    const noteId = createNoteRes.data.note.id;
+    assert.equal(createNoteRes.data.note.targetUserId, targetUserId);
+    assert.equal(createNoteRes.data.note.reactions.length, 0);
+
+    // Admin profile view includes note
+    const adminProfileRes = await api<{ notes?: Array<{ id: string; content: string }> }>(
+      `/api/admin/users/${targetUserId}/profile`,
+      { token: adminToken }
+    );
+    assert.equal(adminProfileRes.status, 200);
+    assert.ok(adminProfileRes.data.notes?.some((n) => n.id === noteId));
+
+    // Bystander cannot view or react to another student's note
+    const bystanderNotesRes = await api<{ notes: Array<{ id: string }> }>('/api/account/notes', {
+      token: bystanderToken,
+    });
+    assert.equal(bystanderNotesRes.status, 200);
+    assert.equal(bystanderNotesRes.data.notes.some((n) => n.id === noteId), false);
+
+    const bystanderReactRes = await api(`/api/account/notes/${noteId}/react`, {
+      method: 'POST',
+      token: bystanderToken,
+      body: JSON.stringify({ emoji: '👍' }),
+    });
+    assert.equal(bystanderReactRes.status, 403);
+
+    // Target student views note and can only react with allowed emojis (no free-text replies)
+    const targetNotesRes = await api<{ notes: Array<{ id: string; content: string }> }>(
+      '/api/account/notes',
+      { token: targetToken }
+    );
+    assert.equal(targetNotesRes.status, 200);
+    assert.ok(targetNotesRes.data.notes.some((n) => n.id === noteId));
+
+    const badEmojiRes = await api(`/api/account/notes/${noteId}/react`, {
+      method: 'POST',
+      token: targetToken,
+      body: JSON.stringify({ emoji: 'text reply attempt' }),
+    });
+    assert.equal(badEmojiRes.status, 400);
+
+    const reactLikeRes = await api<{
+      note: { reactions: Array<{ userId: string; emoji: string }> };
+    }>(`/api/account/notes/${noteId}/react`, {
+      method: 'POST',
+      token: targetToken,
+      body: JSON.stringify({ emoji: '👍' }),
+    });
+    assert.equal(reactLikeRes.status, 200);
+    assert.equal(reactLikeRes.data.note.reactions[0].emoji, '👍');
+
+    // Switch reaction to ✅
+    const reactCheckRes = await api<{
+      note: { reactions: Array<{ userId: string; emoji: string }> };
+    }>(`/api/account/notes/${noteId}/react`, {
+      method: 'POST',
+      token: targetToken,
+      body: JSON.stringify({ emoji: '✅' }),
+    });
+    assert.equal(reactCheckRes.status, 200);
+    assert.equal(reactCheckRes.data.note.reactions.length, 1);
+    assert.equal(reactCheckRes.data.note.reactions[0].emoji, '✅');
+
+    // Clicking same reaction again toggles it off cleanly
+    const reactToggleOffRes = await api<{ note: { reactions: unknown[] } }>(
+      `/api/account/notes/${noteId}/react`,
+      {
+        method: 'POST',
+        token: targetToken,
+        body: JSON.stringify({ emoji: '✅' }),
+      }
+    );
+    assert.equal(reactToggleOffRes.status, 200);
+    assert.equal(reactToggleOffRes.data.note.reactions.length, 0);
+
+    // Admin deletes the note
+    const deleteNoteRes = await api(
+      `/api/admin/users/${targetUserId}/notes/${noteId}`,
+      { method: 'DELETE', token: adminToken }
+    );
+    assert.equal(deleteNoteRes.status, 200);
+
+    // Cleanup temporary test users (cascade cleans remaining support team entries)
+    for (const id of createdStudentIds) {
+      await api(`/api/admin/users/${id}`, { method: 'DELETE', token: adminToken });
+    }
+  });
+
+  test('16. Personal dashboard metrics, Super Admin exclusive credentials editing & custom admin activation password', async () => {
+    // 1. Register two students for testing dashboard metrics, activation password & credentials edits
+    const regPrimary = await api<{
+      token: string;
+      user: { id: string; role: string; email: string };
+    }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({
-        name: 'Folder Student',
-        email: 'folder.student@test.edu',
-        phone: '01988887771',
-        password: 'password123',
+        name: 'طالب لوحة التحكم',
+        email: 'dash.student@test.edu',
+        phone: '01777777701',
+        password: 'dashPass123',
+        year: 2,
+        acceptedTerms: true,
+      }),
+    });
+    assert.equal(regPrimary.status, 201);
+    const dashStudentToken = regPrimary.data.token;
+    const dashStudentId = regPrimary.data.user.id;
+
+    const regTarget = await api<{
+      token: string;
+      user: { id: string; role: string; email: string };
+    }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'طالب تعديل البيانات',
+        email: 'cred.target@test.edu',
+        phone: '01777777702',
+        password: 'credOldPass123',
         year: 1,
         acceptedTerms: true,
       }),
     });
-    assert.equal(folderStudentReg.status, 201);
-    const folderStudentToken = folderStudentReg.data.token;
+    assert.equal(regTarget.status, 201);
+    const targetTokenOld = regTarget.data.token;
+    const targetUserId = regTarget.data.user.id;
 
-    // 1. Admin creates a folder inside course-gis-101
-    const folderRes = await api<{ folder: { id: string; name: string } }>(
-      '/api/courses/course-gis-101/folders',
-      {
-        method: 'POST',
-        token: adminToken,
-        body: JSON.stringify({ name: 'مجلد الوحدة التجريبية' }),
-      }
-    );
-    assert.equal(folderRes.status, 201);
-    const folderId = folderRes.data.folder.id;
+    // 2. Verify personal dashboard returns personalInfo, achievements & strengthsAndWeaknesses
+    const dashRes = await api<{
+      personalInfo: { id: string; email: string; leaderboardRank: number; totalRankedUsers: number };
+      achievements: Array<{ id: string; earned: boolean; progressPercent: number }>;
+      earnedBadgesCount: number;
+      totalBadgesCount: number;
+      strengthsAndWeaknesses: {
+        overallStrengthPercent: number;
+        overallWeaknessPercent: number;
+        hasQuizData: boolean;
+        trackBreakdown: Array<{ track: string; strengthPercent: number; weaknessPercent: number }>;
+      };
+    }>('/api/student/dashboard', { token: dashStudentToken });
+    assert.equal(dashRes.status, 200);
+    assert.equal(dashRes.data.personalInfo.id, dashStudentId);
+    assert.equal(dashRes.data.personalInfo.email, 'dash.student@test.edu');
+    assert.ok(dashRes.data.personalInfo.leaderboardRank >= 1);
+    assert.ok(dashRes.data.totalBadgesCount >= 5);
+    assert.ok(Array.isArray(dashRes.data.achievements));
+    assert.equal(typeof dashRes.data.earnedBadgesCount, 'number');
+    assert.equal(typeof dashRes.data.strengthsAndWeaknesses.overallStrengthPercent, 'number');
+    assert.equal(typeof dashRes.data.strengthsAndWeaknesses.overallWeaknessPercent, 'number');
+    assert.ok(Array.isArray(dashRes.data.strengthsAndWeaknesses.trackBreakdown));
 
-    // 2. Admin adds a Course Book (kind: 'book') to the folder
-    const bookForm = new FormData();
-    bookForm.append('title', 'كتاب أساسيات المساحة');
-    bookForm.append('folderId', folderId);
-    bookForm.append('kind', 'book');
-    bookForm.append(
-      'pdf',
-      new Blob(['%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'], {
-        type: 'application/pdf',
+    // 3. Super Admin sets a custom Admin Activation Password and chooses default rank
+    const setActPass = await api<{
+      configured: boolean;
+      defaultRankId: string;
+    }>('/api/admin/activation-password', {
+      method: 'PUT',
+      token: adminToken,
+      body: JSON.stringify({
+        password: 'LeaderSecretActivation2026',
+        defaultRankId: 'rank-student-affairs',
       }),
-      'course-book.pdf'
-    );
-    const bookRes = await api<{ summary: { id: string; kind?: string; folderId?: string } }>(
-      '/api/courses/course-gis-101/summaries',
-      {
-        method: 'POST',
-        token: adminToken,
-        body: bookForm,
-      }
-    );
-    assert.equal(bookRes.status, 201);
-    assert.equal(bookRes.data.summary.kind, 'book');
-    assert.equal(bookRes.data.summary.folderId, folderId);
+    });
+    assert.equal(setActPass.status, 200);
+    assert.equal(setActPass.data.configured, true);
+    assert.equal(setActPass.data.defaultRankId, 'rank-student-affairs');
 
-    // 3. Reject assignment when title is missing
-    const missingTitleAssign = await api('/api/courses/course-gis-101/assignments', {
+    // Public config must NEVER leak activation password or hash
+    const publicCfg = await api<Record<string, unknown>>('/api/platform/config');
+    assert.equal(publicCfg.status, 200);
+    assert.equal('adminActivationPasswordHash' in publicCfg.data, false);
+    assert.equal('adminActivationDefaultRankId' in publicCfg.data, false);
+
+    // 4. Student tries wrong activation password -> 403; correct password -> promoted to delegated admin
+    const wrongActivate = await api('/api/account/activate-admin', {
       method: 'POST',
-      token: adminToken,
-      body: JSON.stringify({ folderId, text: 'بدون اسم تكليف' }),
+      token: dashStudentToken,
+      body: JSON.stringify({ password: 'WrongActivationPassword' }),
     });
-    assert.equal(missingTitleAssign.status, 400);
+    assert.equal(wrongActivate.status, 403);
 
-    // 4. Reject disallowed attachment extension (e.g. .html / .txt)
-    const badAttachForm = new FormData();
-    badAttachForm.append('title', 'تكليف بمرفق مرفوض');
-    badAttachForm.append('folderId', folderId);
-    badAttachForm.append(
-      'attachment',
-      new Blob(['hello'], { type: 'text/plain' }),
-      'notes.txt'
-    );
-    const badAttachRes = await api('/api/courses/course-gis-101/assignments', {
+    const okActivate = await api<{
+      user: { role: string; adminRankId?: string; isSuperAdmin?: boolean };
+    }>('/api/account/activate-admin', {
       method: 'POST',
-      token: adminToken,
-      body: badAttachForm,
+      token: dashStudentToken,
+      body: JSON.stringify({ password: 'LeaderSecretActivation2026' }),
     });
-    assert.equal(badAttachRes.status, 400);
+    assert.equal(okActivate.status, 200);
+    assert.equal(okActivate.data.user.role, 'admin');
+    assert.equal(okActivate.data.user.adminRankId, 'rank-student-affairs');
+    assert.equal(Boolean(okActivate.data.user.isSuperAdmin), false);
 
-    // 5. Create assignment with ONLY title (JSON, no text, no attachment)
-    const titleOnlyRes = await api<{
-      assignment: { id: string; title: string; folderId?: string; text?: string; fileUrl?: string };
-    }>('/api/courses/course-gis-101/assignments', {
+    // 5. Also confirm new registration with custom activation password works cleanly
+    const regViaActivation = await api<{
+      user: { role: string; adminRankId?: string; isSuperAdmin?: boolean };
+    }>('/api/auth/register', {
       method: 'POST',
-      token: adminToken,
-      body: JSON.stringify({ title: 'تكليف بالاسم فقط', folderId }),
+      body: JSON.stringify({
+        name: 'أدمن مفعل عند التسجيل',
+        email: 'reg.admin.act@test.edu',
+        phone: '01777777703',
+        password: 'regAdminPass123',
+        year: 3,
+        adminCode: 'LeaderSecretActivation2026',
+        acceptedTerms: true,
+      }),
     });
-    assert.equal(titleOnlyRes.status, 201);
-    assert.equal(titleOnlyRes.data.assignment.title, 'تكليف بالاسم فقط');
-    assert.equal(titleOnlyRes.data.assignment.folderId, folderId);
-    assert.equal(titleOnlyRes.data.assignment.text, undefined);
-    assert.equal(titleOnlyRes.data.assignment.fileUrl, undefined);
+    assert.equal(regViaActivation.status, 201);
+    assert.equal(regViaActivation.data.user.role, 'admin');
+    assert.equal(regViaActivation.data.user.adminRankId, 'rank-student-affairs');
+    assert.equal(Boolean(regViaActivation.data.user.isSuperAdmin), false);
 
-    // 6. Create assignment with title + text
-    const textOnlyRes = await api<{ assignment: { id: string; text?: string } }>(
-      '/api/courses/course-gis-101/assignments',
-      {
-        method: 'POST',
-        token: adminToken,
-        body: JSON.stringify({
-          title: 'تكليف كتابي',
-          folderId,
-          text: 'اشرح الفرق بين الإحداثيات الجغرافية والمسقطة.',
-        }),
-      }
-    );
-    assert.equal(textOnlyRes.status, 201);
-    assert.equal(textOnlyRes.data.assignment.text, 'اشرح الفرق بين الإحداثيات الجغرافية والمسقطة.');
+    // 6. Newly promoted sub-admin CANNOT edit activation password or users' email/password (403)
+    const subAdminSetAct = await api('/api/admin/activation-password', {
+      method: 'PUT',
+      token: dashStudentToken,
+      body: JSON.stringify({ password: 'HijackPassword999' }),
+    });
+    assert.equal(subAdminSetAct.status, 403);
 
-    // 7. Create assignment with title + image attachment
-    const imgForm = new FormData();
-    imgForm.append('title', 'تكليف بصورة توضيحية');
-    imgForm.append('folderId', folderId);
-    imgForm.append(
-      'attachment',
-      new Blob([Buffer.from('89504e470d0a1a0a', 'hex')], { type: 'image/png' }),
-      'diagram.png'
-    );
-    const imgRes = await api<{
-      assignment: { id: string; attachmentType?: string; fileUrl?: string };
-    }>('/api/courses/course-gis-101/assignments', {
+    const subAdminCredEdit = await api(`/api/admin/users/${targetUserId}/credentials`, {
+      method: 'PATCH',
+      token: dashStudentToken,
+      body: JSON.stringify({
+        email: 'subadmin.blocked@test.edu',
+        newPassword: 'blockedChange123',
+      }),
+    });
+    assert.equal(subAdminCredEdit.status, 403);
+
+    // 7. Super Admin CAN edit target user's email & password exclusively, revoking target's old session
+    const superAdminCredEdit = await api<{
+      user: { id: string; email: string };
+    }>(`/api/admin/users/${targetUserId}/credentials`, {
+      method: 'PATCH',
+      token: adminToken,
+      body: JSON.stringify({
+        email: 'cred.updated@test.edu',
+        newPassword: 'credNewPass456',
+      }),
+    });
+    assert.equal(superAdminCredEdit.status, 200);
+    assert.equal(superAdminCredEdit.data.user.email, 'cred.updated@test.edu');
+
+    // Old session of target user must be invalidated after password update
+    const oldSessionCheck = await api('/api/auth/me', { token: targetTokenOld });
+    assert.equal(oldSessionCheck.status, 401);
+
+    // Target user logs in with updated email & new password
+    const updatedLogin = await api<{
+      token: string;
+      user: { email: string };
+    }>('/api/auth/login', {
       method: 'POST',
+      body: JSON.stringify({
+        identifier: 'cred.updated@test.edu',
+        password: 'credNewPass456',
+      }),
+    });
+    assert.equal(updatedLogin.status, 200);
+    assert.equal(updatedLogin.data.user.email, 'cred.updated@test.edu');
+
+    // Super Admin can clear activation password cleanly
+    const clearAct = await api<{ configured: boolean }>('/api/admin/activation-password', {
+      method: 'PUT',
       token: adminToken,
-      body: imgForm,
+      body: JSON.stringify({ clear: true }),
     });
-    assert.equal(imgRes.status, 201);
-    assert.equal(imgRes.data.assignment.attachmentType, 'image');
-    assert.ok(imgRes.data.assignment.fileUrl?.startsWith('/uploads/'));
-
-    // 8. Student cannot create or delete assignments (403)
-    const stdCreateAssign = await api('/api/courses/course-gis-101/assignments', {
-      method: 'POST',
-      token: folderStudentToken,
-      body: JSON.stringify({ title: 'محاولة طالب', folderId }),
-    });
-    assert.equal(stdCreateAssign.status, 403);
-
-    const stdDeleteAssign = await api(`/api/assignments/${titleOnlyRes.data.assignment.id}`, {
-      method: 'DELETE',
-      token: folderStudentToken,
-    });
-    assert.equal(stdDeleteAssign.status, 403);
-
-    // 9. Course details exposes books and assignments to enrolled/authenticated student
-    const detailsRes = await api<{
-      summaries: Array<{ id: string; kind?: string; folderId?: string }>;
-      assignments: Array<{ id: string; title: string; folderId?: string }>;
-    }>('/api/courses/course-gis-101/details', { token: folderStudentToken });
-    assert.equal(detailsRes.status, 200);
-    assert.ok(
-      detailsRes.data.summaries.some(
-        (s) => s.id === bookRes.data.summary.id && s.kind === 'book'
-      )
-    );
-    assert.ok(
-      detailsRes.data.assignments.some((a) => a.id === titleOnlyRes.data.assignment.id)
-    );
-
-    // 10. Deleting one assignment and then deleting the folder cleans up remaining items
-    const delOne = await api(`/api/assignments/${titleOnlyRes.data.assignment.id}`, {
-      method: 'DELETE',
-      token: adminToken,
-    });
-    assert.equal(delOne.status, 200);
-
-    const delFolder = await api(`/api/folders/${folderId}`, {
-      method: 'DELETE',
-      token: adminToken,
-    });
-    assert.equal(delFolder.status, 200);
-
-    const afterFolderDel = await api<{
-      summaries: Array<{ id: string }>;
-      assignments: Array<{ id: string }>;
-    }>('/api/courses/course-gis-101/details', { token: adminToken });
-    assert.equal(afterFolderDel.status, 200);
-    assert.ok(!afterFolderDel.data.summaries.some((s) => s.id === bookRes.data.summary.id));
-    assert.ok(!afterFolderDel.data.assignments.some((a) => a.id === imgRes.data.assignment.id));
+    assert.equal(clearAct.status, 200);
+    assert.equal(clearAct.data.configured, false);
   });
 });
+
+

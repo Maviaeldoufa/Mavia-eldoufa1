@@ -11,12 +11,33 @@ import {
 } from '../scripts/migrate-json-to-supabase.ts';
 
 describe('MVIA Supabase Schema & Migration Readiness Suite', () => {
-  test('1. SQL migration files exist and cover all core tables with idempotent RLS', () => {
+  test('1. SQL migration files exist in ordered supabase/migrations and cover all core tables with idempotent RLS', () => {
     const migrationsDir = path.resolve(process.cwd(), 'supabase', 'migrations');
     const files = fs.readdirSync(migrationsDir).sort();
-    assert.ok(files.includes('001_admin_ranks_support.sql'));
-    assert.ok(files.includes('002_full_core_schema.sql'));
-    assert.ok(files.includes('003_rls_and_security.sql'));
+    assert.deepEqual(files.slice(0, 3), [
+      '001_admin_ranks_support.sql',
+      '002_full_core_schema.sql',
+      '003_rls_and_security.sql',
+    ]);
+
+    // Ensure duplicate SQL files were moved out of project root
+    for (const sqlFile of files) {
+      assert.equal(
+        fs.existsSync(path.resolve(process.cwd(), sqlFile)),
+        false,
+        `Duplicate root SQL file should not exist outside supabase/migrations: ${sqlFile}`
+      );
+    }
+
+    // Ensure migration script and package.json scripts align with scripts/ layout
+    const scriptPath = path.resolve(process.cwd(), 'scripts', 'migrate-json-to-supabase.ts');
+    assert.ok(fs.existsSync(scriptPath), 'scripts/migrate-json-to-supabase.ts must exist');
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf-8')) as {
+      scripts?: Record<string, string>;
+    };
+    assert.ok(pkg.scripts?.['db:migrate:dry']?.includes('scripts/migrate-json-to-supabase.ts'));
+    assert.ok(pkg.scripts?.['db:migrate']?.includes('scripts/migrate-json-to-supabase.ts'));
+    assert.ok(pkg.scripts?.['db:verify']?.includes('scripts/migrate-json-to-supabase.ts'));
 
     const schemaSql = fs.readFileSync(
       path.join(migrationsDir, '002_full_core_schema.sql'),

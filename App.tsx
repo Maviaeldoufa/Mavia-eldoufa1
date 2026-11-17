@@ -178,8 +178,8 @@ function MviaWorkspace() {
         <GeoEngineeringBackground variant="page" />
         <div className="relative z-10 text-center space-y-3 flex flex-col items-center">
           <MviaBrandMark size="lg" />
-          <p className="text-sm text-[#A8A29E]">
-            {tr('جاري تحميل المنصة...', 'Loading Mavia platform...')}
+          <p className="text-xs text-[#A8A29E]">
+            {tr('جاري تحميل المنصة...', 'Loading MAVIA platform...')}
           </p>
         </div>
       </div>
@@ -306,7 +306,7 @@ function MviaWorkspace() {
         </Suspense>
       </main>
 
-      {/* Floating Official MAVIA Logo Medallion (bottom-right on wide screens) */}
+      {/* Floating Official MVIA Logo Medallion (bottom-right on wide screens) */}
       <div className="fixed bottom-16 right-5 z-30 hidden xl:block">
         <FloatingLogo
           size="md"

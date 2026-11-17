@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import type { DatabaseSchema } from '../server/types.ts';
 
 export interface MigrationBundle {
@@ -617,6 +618,17 @@ export function verifyJsonIntegrity(store: DatabaseSchema): IntegrityReport {
     );
   }
 
+  const userIds = new Set(users.map((u) => u.id));
+  const rankIds = new Set((store.adminRanks || []).map((r) => r.id));
+  const skippedOfficials = (store.adminOfficials || []).filter(
+    (o) => !userIds.has(o.userId) || !rankIds.has(o.rankId) || !userIds.has(o.assignedBy)
+  ).length;
+  if (skippedOfficials > 0) {
+    warnings.push(
+      `${skippedOfficials} admin official record(s) reference missing user/rank/assignedBy IDs and will be skipped during migration.`
+    );
+  }
+
   const totalUserPoints = users.reduce((acc, u) => acc + Number(u.points || 0), 0);
   const totalQuizzesCompleted = users.reduce(
     (acc, u) => acc + Number(u.quizzesCompleted || 0),
@@ -703,11 +715,20 @@ export async function verifySupabaseParity(
     });
   }
 
-  const { data: userStats, error: userErr } = await supabase
-    .from('users')
-    .select('id, points, quizzes_completed');
-  if (userErr) {
-    throw new Error(`User checksum query failed: ${userErr.message}`);
+  const userStats: Array<{ id: string; points: number | null; quizzes_completed: number | null }> = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error: userErr } = await supabase
+      .from('users')
+      .select('id, points, quizzes_completed')
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (userErr) {
+      throw new Error(`User checksum query failed: ${userErr.message}`);
+    }
+    if (!data || data.length === 0) break;
+    userStats.push(...data);
+    if (data.length < pageSize) break;
   }
 
   const expectedPoints = (store.users || []).reduce((sum, u) => sum + Number(u.points || 0), 0);
@@ -820,11 +841,12 @@ export async function runMigrationCli(argv = process.argv.slice(2)): Promise<voi
   console.log('[SUCCESS] Migration and post-migration verification completed cleanly.');
 }
 
+const currentFilePath = path.resolve(fileURLToPath(import.meta.url));
 const isMain =
   typeof process !== 'undefined' &&
   Array.isArray(process.argv) &&
-  process.argv[1] &&
-  path.resolve(process.argv[1]).endsWith(path.join('scripts', 'migrate-json-to-supabase.ts'));
+  Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === currentFilePath;
 
 if (isMain) {
   runMigrationCli().catch((err) => {

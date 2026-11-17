@@ -31,13 +31,6 @@ export function getEmailDeliveryConfig(): {
   apiKey: string;
   fromEmail: string;
 } {
-  const rawEnabled = (process.env.EMAIL_ENABLED ?? 'false').trim().toLowerCase();
-  const isEmailFeatureEnabled =
-    rawEnabled === 'true' || rawEnabled === '1' || rawEnabled === 'yes';
-  if (!isEmailFeatureEnabled) {
-    return { enabled: false, apiKey: '', fromEmail: '' };
-  }
-
   const apiKey = process.env.RESEND_API_KEY?.trim() || '';
   const fromEmail = process.env.EMAIL_FROM?.trim() || '';
   if (!apiKey || !fromEmail) {
@@ -74,6 +67,7 @@ export const ALL_ADMIN_PERMISSIONS: AdminPermissionKey[] = [
   'manage_learning',
   'manage_community',
   'manage_students',
+  'manage_user_notes',
   'manage_support',
   'view_sensitive_data',
 ];
@@ -127,6 +121,12 @@ export const ADMIN_PERMISSIONS_CATALOG: Array<{
     labelAr: 'إدارة حسابات الطلاب والحظر',
     labelEn: 'Manage Students & Moderation',
     descriptionAr: 'عرض دليل المستخدمين ومتابعة التقدم الأكاديمي وتفعيل أو حظر الحسابات.',
+  },
+  {
+    key: 'manage_user_notes',
+    labelAr: 'الدخول لبروفايلات المستخدمين وكتابة الملاحظات',
+    labelEn: 'User Profiles & Admin Notes',
+    descriptionAr: 'الدخول على بروفايلات المستخدمين وكتابة ملاحظات إدارية لهم مع متابعة تفاعلهم بالرياكت.',
   },
   {
     key: 'manage_support',
@@ -357,7 +357,7 @@ function buildSeedData(): DatabaseSchema {
   const users: User[] = [
     {
       id: 'user-founder-admin',
-      name: 'القائد — أدمن MAVIA',
+      name: 'القائد — أدمن MVIA',
       email: 'admin@mvia.edu',
       phone: '01000000000',
       passwordHash: hashPassword('admin123'),
@@ -559,7 +559,7 @@ function buildSeedData(): DatabaseSchema {
       description:
         'ملخص مركز يوضح الفروق الجوهرية بين البيانات الخطية والشبكية، أنظمة WGS84 و UTM، وأخطاء الإسقاط الخرائطي الشائعة.',
       viewedBy: [],
-      createdBy: 'القائد — أدمن MAVIA',
+      createdBy: 'القائد — أدمن MVIA',
       createdAt: now,
     },
     {
@@ -569,7 +569,7 @@ function buildSeedData(): DatabaseSchema {
       description:
         'أمثلة عملية مختصرة على الحلقات التكرارية والدوال وهياكل البيانات مع مسائل محلولة للامتحان.',
       viewedBy: [],
-      createdBy: 'القائد — أدمن MAVIA',
+      createdBy: 'القائد — أدمن MVIA',
       createdAt: now,
     },
     {
@@ -579,7 +579,7 @@ function buildSeedData(): DatabaseSchema {
       description:
         'خطوات عملية كاملة لرفع طبقات Shapefile و GeoJSON ونشر خدمات WMS / WFS.',
       viewedBy: [],
-      createdBy: 'القائد — أدمن MAVIA',
+      createdBy: 'القائد — أدمن MVIA',
       createdAt: now,
     },
   ];
@@ -716,18 +716,18 @@ function buildSeedData(): DatabaseSchema {
       id: 'lec-gis-101',
       title: 'المحاضرة التمهيدية: مدخل إلى نظم المعلومات الجغرافية (GIS) وتطبيقاتها الهندسية',
       description:
-        'شرح تفاعلي في مشغل MAVIA الاحترافي مع دعم حفظ مكان التوقف تلقائياً، سرعات التشغيل، الترجمة القابلة للإغلاق، والملاحظات المرتبطة بالوقت.',
+        'شرح تفاعلي في مشغل MVIA الاحترافي مع دعم حفظ مكان التوقف تلقائياً، سرعات التشغيل، الترجمة القابلة للإغلاق، والملاحظات المرتبطة بالوقت.',
       category: 'GIS' as const,
       year: 0 as const,
-      instructor: 'م. محمود حيدر يوسف — إدارة MAVIA',
+      instructor: 'م. محمود حيدر يوسف — إدارة MVIA',
       videoUrl: '/assets/mvia-gis-intro.mp4',
       subtitleUrl: '/assets/mvia-gis-intro.vtt',
       attachmentUrl: '/assets/mvia-gis-intro.vtt',
-      attachmentName: 'MAVIA-GIS-Transcript.vtt',
+      attachmentName: 'MVIA-GIS-Transcript.vtt',
       attachmentSize: 980,
       allowDownload: true,
       durationSeconds: 40,
-      createdBy: 'القائد — أدمن MAVIA',
+      createdBy: 'القائد — أدمن MVIA',
       createdAt: now,
     },
   ];
@@ -735,14 +735,14 @@ function buildSeedData(): DatabaseSchema {
   const notifications = [
     {
       id: 'notif-welcome-mvia',
-      title: 'أهلاً بكم في التحديث الجديد لمنصة MAVIA',
+      title: 'أهلاً بكم في التحديث الجديد لمنصة MVIA',
       message:
         'تم إضافة مشغل المحاضرات الاحترافي في قسم Learning ونظام الامتحانات المتطور ببنك الأسئلة العشوائي داخل كل مجلد.',
       type: 'general' as const,
       targetSection: 'learning' as const,
       year: 0 as const,
       readBy: [],
-      createdBy: 'القائد — أدمن MAVIA',
+      createdBy: 'القائد — أدمن MVIA',
       createdAt: now,
     },
     {
@@ -754,7 +754,7 @@ function buildSeedData(): DatabaseSchema {
       targetSection: 'courses' as const,
       year: 0 as const,
       readBy: [],
-      createdBy: 'القائد — أدمن MAVIA',
+      createdBy: 'القائد — أدمن MVIA',
       createdAt: now,
     },
   ];
@@ -825,7 +825,7 @@ function buildSeedData(): DatabaseSchema {
   const groupLinks = [
     {
       id: 'grp-general',
-      title: 'جروب MAVIA العام — GIS والبرمجة',
+      title: 'جروب MVIA العام — GIS والبرمجة',
       url: 'https://t.me/+201159637247',
       platform: 'Telegram' as const,
       year: 0 as const,
@@ -865,7 +865,7 @@ function buildSeedData(): DatabaseSchema {
       url: 'https://discord.com/',
       platform: 'Discord' as const,
       year: 4 as const,
-      description: 'تجمع خريجي MAVIA لمناقشة Web GIS ومشاريع التخرج والتدريب المهني.',
+      description: 'تجمع خريجي MVIA لمناقشة Web GIS ومشاريع التخرج والتدريب المهني.',
       createdAt: now,
     },
   ];
@@ -875,10 +875,10 @@ function buildSeedData(): DatabaseSchema {
       id: 'msg-1',
       room: 'general',
       userId: 'user-founder-admin',
-      userName: 'القائد — أدمن MAVIA',
+      userName: 'القائد — أدمن MVIA',
       userRole: 'admin' as const,
       userYear: 4 as const,
-      text: 'أهلاً بكم في منصة MAVIA! هذه الساحة مخصصة للتواصل الفوري بين طلاب جميع الدفعات في GIS والبرمجة.',
+      text: 'أهلاً بكم في منصة MVIA! هذه الساحة مخصصة للتواصل الفوري بين طلاب جميع الدفعات في GIS والبرمجة.',
       createdAt: now,
     },
     {
@@ -923,7 +923,6 @@ function buildSeedData(): DatabaseSchema {
     courses,
     folders,
     summaries,
-    assignments: [],
     quizzes,
     quizSubmissions: [],
     announcements,
@@ -953,13 +952,14 @@ function buildSeedData(): DatabaseSchema {
     adminAuditLogs: [],
     adminRanks: buildDefaultAdminRanks(),
     adminOfficials: [],
+    supportTeam: [],
+    userProfileNotes: [],
   };
 }
 
 function normalizeLoadedStore(data: DatabaseSchema): DatabaseSchema {
   if (!data.studentProgress) data.studentProgress = {};
   if (!data.folders) data.folders = [];
-  if (!Array.isArray(data.assignments)) data.assignments = [];
   if (!data.announcements) data.announcements = [];
   if (!data.notifications) data.notifications = buildSeedData().notifications;
   if (!data.lectures) data.lectures = buildSeedData().lectures;
@@ -997,6 +997,8 @@ function normalizeLoadedStore(data: DatabaseSchema): DatabaseSchema {
     }
   }
   if (!Array.isArray(data.adminOfficials)) data.adminOfficials = [];
+  if (!Array.isArray(data.supportTeam)) data.supportTeam = [];
+  if (!Array.isArray(data.userProfileNotes)) data.userProfileNotes = [];
   for (const u of data.users || []) {
     if (u.role === 'admin' && u.isProtected && !u.adminRankId) {
       u.adminRankId = 'rank-super-admin';

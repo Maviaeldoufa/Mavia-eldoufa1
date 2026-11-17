@@ -10,6 +10,7 @@ export type AdminPermissionKey =
   | 'manage_learning'
   | 'manage_community'
   | 'manage_students'
+  | 'manage_user_notes'
   | 'manage_support'
   | 'view_sensitive_data';
 
@@ -56,6 +57,39 @@ export interface AdminOfficial {
   showInSupport: boolean;
   isActive: boolean;
   assignedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportTeamMember {
+  id: string;
+  slotNumber: number; // 1..7
+  userId: string;
+  displayName: string;
+  specialty?: string;
+  whatsappNumber: string; // Private server-side only; never returned in public/student endpoints
+  isActive: boolean;
+  assignedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NoteReactionEmoji = '👍' | '❤️' | '👏' | '🔥' | '💡' | '✅';
+
+export interface UserProfileNoteReaction {
+  userId: string;
+  userName: string;
+  emoji: NoteReactionEmoji;
+  reactedAt: string;
+}
+
+export interface UserProfileNote {
+  id: string;
+  targetUserId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  reactions: UserProfileNoteReaction[];
   createdAt: string;
   updatedAt: string;
 }
@@ -127,7 +161,6 @@ export interface SummaryItem {
   id: string;
   courseId: string;
   folderId?: string;
-  kind?: 'summary' | 'book';
   title: string;
   description: string;
   fileUrl?: string;
@@ -135,22 +168,6 @@ export interface SummaryItem {
   fileSize?: number;
   releaseAt?: string;
   viewedBy?: string[];
-  createdBy: string;
-  createdAt: string;
-}
-
-export type AssignmentAttachmentType = 'image' | 'video' | 'pdf';
-
-export interface CourseAssignment {
-  id: string;
-  courseId: string;
-  folderId?: string;
-  title: string;
-  text?: string;
-  attachmentType?: AssignmentAttachmentType;
-  fileUrl?: string;
-  fileName?: string;
-  fileSize?: number;
   createdBy: string;
   createdAt: string;
 }
@@ -288,6 +305,9 @@ export interface PlatformAnalytics {
 export interface PlatformConfig {
   whatsappNumber: string;
   telegramUrl: string;
+  adminActivationPasswordHash?: string;
+  adminActivationPasswordUpdatedAt?: string;
+  adminActivationDefaultRankId?: string;
 }
 
 export interface LearningLink {
@@ -407,15 +427,23 @@ export interface MaintenanceState {
 
 export type AdminAuditAction =
   | 'user.create'
+  | 'user.credentials_update'
+  | 'user.admin_activated'
   | 'user.suspend'
   | 'user.activate'
   | 'user.delete'
   | 'user.profile_view'
+  | 'user.note_create'
+  | 'user.note_delete'
   | 'users.csv_export'
   | 'rank.update'
+  | 'admin.activation_password_update'
   | 'official.assign'
   | 'official.update'
-  | 'official.remove';
+  | 'official.remove'
+  | 'support_team.assign'
+  | 'support_team.update'
+  | 'support_team.remove';
 
 export interface AdminAuditLog {
   id: string;
@@ -435,7 +463,6 @@ export interface DatabaseSchema {
   courses: Course[];
   folders?: CourseFolder[];
   summaries: SummaryItem[];
-  assignments?: CourseAssignment[];
   quizzes: Quiz[];
   quizSubmissions: QuizSubmission[];
   announcements?: AnnouncementCountdown[];
@@ -455,4 +482,6 @@ export interface DatabaseSchema {
   adminAuditLogs?: AdminAuditLog[];
   adminRanks?: AdminRank[];
   adminOfficials?: AdminOfficial[];
+  supportTeam?: SupportTeamMember[];
+  userProfileNotes?: UserProfileNote[];
 }

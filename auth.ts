@@ -103,3 +103,19 @@ export function requirePermission(permission: AdminPermissionKey) {
     next();
   };
 }
+
+export function requireAnyPermission(...permissions: AdminPermissionKey[]) {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    if (!req.currentUser || req.currentUser.role !== 'admin') {
+      res.status(403).json({ error: 'هذه الصلاحية مخصصة للمسؤولين فقط.' });
+      return;
+    }
+    if (!permissions.some((p) => hasUserPermission(req.currentUser, p))) {
+      res.status(403).json({
+        error: 'رتبتك الإدارية الحالية لا تملك صلاحية تنفيذ هذا الإجراء.',
+      });
+      return;
+    }
+    next();
+  };
+}

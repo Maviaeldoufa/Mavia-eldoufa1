@@ -9,14 +9,13 @@
 @layer base {
   html {
     font-family: "Cairo", system-ui, sans-serif;
-    font-size: clamp(16.5px, 0.15vw + 16px, 18px);
+    font-size: clamp(15.75px, 0.12vw + 15.5px, 16.5px);
+    line-height: 1.62;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     background-color: #09090B;
     color: #F5F0E6;
-  }
-
-  body {
-    font-size: 1rem;
-    line-height: 1.65;
   }
 
   /* Custom subtle obsidian scrollbar */
@@ -59,62 +58,6 @@
   outline-offset: 2px;
 }
 
-@keyframes mavia-float-gentle {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-@keyframes mavia-logo-vertical {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-.mavia-float-card {
-  animation: mavia-float-gentle 3.8s ease-in-out infinite;
-  will-change: transform, box-shadow;
-}
-
-.mavia-float-delay-0 {
-  animation-delay: 0s;
-}
-
-.mavia-float-delay-1 {
-  animation-delay: 0.55s;
-}
-
-.mavia-float-delay-2 {
-  animation-delay: 1.1s;
-}
-
-.mavia-float-delay-3 {
-  animation-delay: 1.65s;
-}
-
-.mavia-float-card:hover {
-  box-shadow:
-    0 0 32px rgba(212, 175, 55, 0.42),
-    0 14px 30px rgba(0, 0, 0, 0.65);
-}
-
-.mavia-brand-mark {
-  transition: filter 0.28s ease, transform 0.28s ease;
-  will-change: transform, filter;
-}
-
-.mavia-brand-mark:hover,
-.group:hover .mavia-brand-mark {
-  animation: mavia-logo-vertical 1.25s ease-in-out infinite;
-  filter: drop-shadow(0 0 16px rgba(245, 208, 97, 0.88)) brightness(1.16);
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -125,4 +68,3 @@
     scroll-behavior: auto !important;
   }
 }
-
