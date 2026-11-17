@@ -154,13 +154,17 @@ export interface CourseFolder {
   description?: string;
   coverUrl?: string;
   releaseAt?: string;
+  viewedBy?: string[];
   createdAt: string;
 }
+
+export type SummaryCategory = 'book' | 'summary';
 
 export interface SummaryItem {
   id: string;
   courseId: string;
   folderId?: string;
+  category?: SummaryCategory;
   title: string;
   description: string;
   fileUrl?: string;
@@ -172,6 +176,23 @@ export interface SummaryItem {
   createdAt: string;
 }
 
+export interface CourseAssignment {
+  id: string;
+  courseId: string;
+  folderId?: string;
+  title: string;
+  type: 'pdf' | 'image' | 'text';
+  contentText?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  roleTag?: 'assignment' | 'submission';
+  createdBy: string;
+  createdById: string;
+  createdAt: string;
+}
+
 export interface QuizQuestion {
   id: string;
   question: string;
@@ -180,11 +201,15 @@ export interface QuizQuestion {
   explanation?: string;
 }
 
+export type QuizDifficulty = 'easy' | 'medium' | 'hard';
+
 export interface Quiz {
   id: string;
   courseId: string;
   folderId?: string;
   title: string;
+  difficulty?: QuizDifficulty;
+  generatedByAi?: boolean;
   durationMinutes: number;
   pointsPerQuestion: number;
   randomizeQuestions?: boolean;
@@ -463,6 +488,7 @@ export interface DatabaseSchema {
   courses: Course[];
   folders?: CourseFolder[];
   summaries: SummaryItem[];
+  assignments?: CourseAssignment[];
   quizzes: Quiz[];
   quizSubmissions: QuizSubmission[];
   announcements?: AnnouncementCountdown[];

@@ -32,7 +32,7 @@ import type {
   User,
   UserRole,
 } from '../../types';
-import { apiRequest, getStoredToken } from '../../utils/api';
+import { apiRequest, getStoredToken, resolveApiUrl } from '../../utils/api';
 import {
   hasAdminPermission,
   hasAnyAdminPermission,
@@ -350,7 +350,7 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
     try {
       const qs = buildFilterQuery({ includeContact: includeContactCsv });
       const token = getStoredToken();
-      const res = await fetch(`/api/admin/users/export.csv?${qs}`, {
+      const res = await fetch(resolveApiUrl(`/api/admin/users/export.csv?${qs}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {

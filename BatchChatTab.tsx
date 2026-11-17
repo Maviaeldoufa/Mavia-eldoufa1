@@ -15,7 +15,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import type { ChatMessage } from '../../types';
-import { apiRequest, getStoredToken } from '../../utils/api';
+import { apiRequest, getStoredToken, resolveApiUrl, resolveWsUrl } from '../../utils/api';
 import { hasAdminPermission } from '../../utils/permissions';
 import { GoldChip } from '../ui/GoldChip';
 import { RankBadge } from '../ui/RankBadge';
@@ -124,10 +124,9 @@ export function BatchChatTab() {
     const token = getStoredToken();
     if (!token) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/chat?token=${encodeURIComponent(
-      token
-    )}&room=${encodeURIComponent(roomRef.current)}`;
+    const wsUrl = resolveWsUrl(
+      `/ws/chat?token=${encodeURIComponent(token)}&room=${encodeURIComponent(roomRef.current)}`
+    );
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -446,12 +445,13 @@ export function BatchChatTab() {
     if (!msg.audioUrl) return;
     setShareFeedback(null);
     setSharingMsgId(msg.id);
-    const absoluteUrl = new URL(msg.audioUrl, window.location.origin).toString();
+    const resolvedAudioUrl = resolveApiUrl(msg.audioUrl);
+    const absoluteUrl = new URL(resolvedAudioUrl, window.location.origin).toString();
     const downloadName = msg.audioName || `mvia-voice-${msg.id.slice(0, 8)}.mp3`;
 
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
-        const res = await fetch(msg.audioUrl);
+        const res = await fetch(resolvedAudioUrl);
         if (res.ok) {
           const blob = await res.blob();
           const file = new File([blob], downloadName, { type: 'audio/mpeg' });
@@ -605,8 +605,9 @@ export function BatchChatTab() {
         ) : (
           messages.map((msg) => {
             const isMine = msg.userId === user?.id;
-            const absoluteAudioUrl = msg.audioUrl
-              ? new URL(msg.audioUrl, window.location.origin).toString()
+            const resolvedAudioUrl = msg.audioUrl ? resolveApiUrl(msg.audioUrl) : '';
+            const absoluteAudioUrl = resolvedAudioUrl
+              ? new URL(resolvedAudioUrl, window.location.origin).toString()
               : '';
             const shareText = msg.text
               ? `${msg.text} — ${absoluteAudioUrl}`
@@ -703,7 +704,7 @@ export function BatchChatTab() {
                       <audio
                         controls
                         preload="metadata"
-                        src={msg.audioUrl}
+                        src={resolvedAudioUrl}
                         className="w-full min-w-[210px] sm:min-w-[270px] h-9"
                       />
 
@@ -737,7 +738,7 @@ export function BatchChatTab() {
                         </a>
 
                         <a
-                          href={msg.audioUrl}
+                          href={resolvedAudioUrl}
                           download={msg.audioName || 'mvia-voice.mp3'}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#151519] border border-white/10 text-[#C8C2B8] hover:border-[#D4AF37] hover:text-[#E5C158] transition-colors"
                         >

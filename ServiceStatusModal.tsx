@@ -2,6 +2,7 @@ import { Activity, CheckCircle2, RefreshCw, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import type { SystemStatusData } from '../../types';
+import { resolveApiUrl } from '../../utils/api';
 import { GoldChip } from './GoldChip';
 
 interface ServiceStatusModalProps {
@@ -19,7 +20,7 @@ export function ServiceStatusModal({ open, onClose }: ServiceStatusModalProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/status');
+      const res = await fetch(resolveApiUrl('/api/status'));
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = (await res.json()) as SystemStatusData;
       setStatus(data);
@@ -134,16 +135,6 @@ export function ServiceStatusModal({ open, onClose }: ServiceStatusModalProps) {
                   {status.services.aiConfigured
                     ? tr('مهيأ', 'Configured')
                     : tr('بحاجة لمفتاح', 'Key Needed')}
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10 flex items-center justify-between sm:col-span-2">
-                <span className="text-[#C8C2B8]">
-                  {tr('بريد التحقق التلقائي (Resend)', 'Email Delivery (Resend)')}
-                </span>
-                <span className={status.services.emailConfigured ? 'text-emerald-400 font-semibold' : 'text-[#A8A29E]'}>
-                  {status.services.emailConfigured
-                    ? tr('مفعّل', 'Configured')
-                    : tr('معطّل مؤقتاً (غير مهيأ)', 'Temporarily Disabled (Not Configured)')}
                 </span>
               </div>
             </div>

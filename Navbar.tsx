@@ -1,4 +1,4 @@
-import { Headset, Languages, LogOut, Scale, ShieldCheck, UserCog } from 'lucide-react';
+import { Languages, LayoutDashboard, LogOut, Scale, ShieldCheck, UserCog } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -8,7 +8,7 @@ import { AccountModal } from './AccountModal';
 import { MviaBrandMark } from './MviaBrandMark';
 import { NotificationsBell } from './NotificationsBell';
 import { RankIconGlyph } from './RankBadge';
-import { SupportCenterModal } from './SupportCenterModal';
+import { StudentProfileLevelModal } from './StudentProfileLevelModal';
 import { TermsModal } from './TermsModal';
 
 interface NavbarProps {
@@ -21,7 +21,7 @@ export function Navbar({ activeSection, onChangeSection }: NavbarProps) {
   const { lang, toggleLang, tr } = useLanguage();
   const [termsOpen, setTermsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [supportOpen, setSupportOpen] = useState(false);
+  const [profileDashboardOpen, setProfileDashboardOpen] = useState(false);
   const [brandLit, setBrandLit] = useState(false);
   const brandTimerRef = useRef<number | null>(null);
 
@@ -98,18 +98,20 @@ export function Navbar({ activeSection, onChangeSection }: NavbarProps) {
           })}
         </nav>
 
-        {/* Zone 3: Language Switcher + Terms Badge + Notifications Bell + User + Logout Button */}
+        {/* Zone 3: Student Profile & Level Dashboard + Terms + Language + Notifications + User + Logout */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setSupportOpen(true)}
-            title={tr('الدعم الفني والتواصل مع الإدارة', 'Technical Support & Contact')}
-            aria-label={tr('الدعم الفني', 'Technical Support')}
-            className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold border border-emerald-500/40 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-600 hover:text-white hover:border-emerald-300 hover:shadow-[0_0_18px_rgba(52,211,153,0.55)] active:shadow-[0_0_24px_rgba(52,211,153,0.8)] transition-all whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            <Headset className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">{tr('الدعم الفني', 'Support')}</span>
-          </button>
+          {user && (
+            <button
+              type="button"
+              onClick={() => setProfileDashboardOpen(true)}
+              title={tr('لوحة التحكم — بيانات الطالب ومستواه', 'Dashboard — Student Profile & Level')}
+              aria-label={tr('لوحة التحكم', 'Student Dashboard')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold border border-[#D4AF37]/45 bg-[#D4AF37]/15 text-[#F5D061] hover:bg-[#D4AF37] hover:text-[#09090B] hover:shadow-[0_0_18px_rgba(212,175,55,0.45)] transition-all whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{tr('لوحة التحكم', 'Dashboard')}</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -207,7 +209,10 @@ export function Navbar({ activeSection, onChangeSection }: NavbarProps) {
     </header>
     <TermsModal open={termsOpen} onClose={() => setTermsOpen(false)} />
     <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
-    <SupportCenterModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+    <StudentProfileLevelModal
+      open={profileDashboardOpen}
+      onClose={() => setProfileDashboardOpen(false)}
+    />
     </>
   );
 }

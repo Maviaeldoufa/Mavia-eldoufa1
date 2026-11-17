@@ -31,6 +31,9 @@ export function getEmailDeliveryConfig(): {
   apiKey: string;
   fromEmail: string;
 } {
+  if ((process.env.EMAIL_ENABLED || '').trim().toLowerCase() === 'false') {
+    return { enabled: false, apiKey: '', fromEmail: '' };
+  }
   const apiKey = process.env.RESEND_API_KEY?.trim() || '';
   const fromEmail = process.env.EMAIL_FROM?.trim() || '';
   if (!apiKey || !fromEmail) {
@@ -546,6 +549,7 @@ function buildSeedData(): DatabaseSchema {
       courseId: 'course-gis-101',
       name: 'مجلد المراجعة الشاملة وبنك الأسئلة',
       description: 'يحتوي على ملخص الأساسيات مع اختبار تفاعلي من بنك الأسئلة العشوائي بمؤقت.',
+      viewedBy: [],
       createdAt: now,
     },
   ];
@@ -923,6 +927,7 @@ function buildSeedData(): DatabaseSchema {
     courses,
     folders,
     summaries,
+    assignments: [],
     quizzes,
     quizSubmissions: [],
     announcements,
@@ -960,6 +965,7 @@ function buildSeedData(): DatabaseSchema {
 function normalizeLoadedStore(data: DatabaseSchema): DatabaseSchema {
   if (!data.studentProgress) data.studentProgress = {};
   if (!data.folders) data.folders = [];
+  if (!Array.isArray(data.assignments)) data.assignments = [];
   if (!data.announcements) data.announcements = [];
   if (!data.notifications) data.notifications = buildSeedData().notifications;
   if (!data.lectures) data.lectures = buildSeedData().lectures;

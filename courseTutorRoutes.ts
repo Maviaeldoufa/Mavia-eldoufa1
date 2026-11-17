@@ -27,9 +27,10 @@ function getLevelInstruction(level: ExplanationLevel, userYear: number): string 
 
 router.post('/courses/:courseId/tutor', requireAuth, aiRateLimiter, async (req: AuthenticatedRequest, res) => {
   const { courseId } = req.params;
-  const { question, level, history } = req.body as {
+  const { question, level, history, folderId } = req.body as {
     question?: string;
     level?: ExplanationLevel;
+    folderId?: string;
     history?: Array<{ role: 'user' | 'model'; text: string }>;
   };
 
@@ -45,13 +46,27 @@ router.post('/courses/:courseId/tutor', requireAuth, aiRateLimiter, async (req: 
     return;
   }
 
+  const folder = folderId
+    ? (store.folders || []).find((f) => f.id === folderId && f.courseId === courseId)
+    : undefined;
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.status(500).json({ error: 'مفتاح Gemini API غير مهيأ على الخادم.' });
     return;
   }
 
-  const courseSummaries = store.summaries.filter((s) => s.courseId === courseId);
+  const allCourseSummaries = store.summaries.filter((s) => s.courseId === courseId);
+  const folderSummaries = folder
+    ? allCourseSummaries.filter((s) => s.folderId === folder.id)
+    : [];
+  const courseSummaries =
+    folder && folderSummaries.length > 0 ? folderSummaries : allCourseSummaries;
+
+  const folderAssignments = folder
+    ? (store.assignments || []).filter((a) => a.courseId === courseId && a.folderId === folder.id)
+    : [];
+
   const usedSources: string[] = [];
   const parts: Part[] = [];
   let accumulatedPdfBytes = 0;
@@ -78,27 +93,62 @@ router.post('/courses/:courseId/tutor', requireAuth, aiRateLimiter, async (req: 
     }
   }
 
+  for (const assign of folderAssignments) {
+    if (assign.fileUrl && (assign.type === 'pdf' || assign.type === 'image')) {
+      const filePath = path.join(UPLOADS_DIR, path.basename(assign.fileUrl));
+      if (fs.existsSync(filePath)) {
+        const stat = fs.statSync(filePath);
+        if (accumulatedPdfBytes + stat.size <= MAX_TOTAL_PDF_BYTES) {
+          const buf = fs.readFileSync(filePath);
+          parts.push({
+            inlineData: {
+              mimeType: assign.mimeType || (assign.type === 'pdf' ? 'application/pdf' : 'image/jpeg'),
+              data: buf.toString('base64'),
+            },
+          });
+          accumulatedPdfBytes += stat.size;
+          usedSources.push(assign.fileName || assign.title);
+        }
+      }
+    } else if (assign.contentText) {
+      usedSources.push(assign.title);
+    }
+  }
+
   const summariesText =
     courseSummaries.length > 0
       ? courseSummaries
           .map(
             (s, idx) =>
-              `${idx + 1}. عنوان الملخص/الكتاب: ${s.title}\n   الوصف/المحتوى النصي: ${s.description}${
+              `${idx + 1}. [${s.category === 'book' ? 'كتاب المادة' : 'ملخص'}] ${s.title}\n   الوصف/المحتوى النصي: ${s.description}${
                 s.fileName ? `\n   ملف PDF مرفق: ${s.fileName}` : ''
               }`
           )
           .join('\n\n')
       : 'لا توجد ملخصات أو كتب PDF مرفوعة لهذه المادة حتى الآن.';
 
+  const assignmentsText =
+    folderAssignments.length > 0
+      ? `\n\nالتكليفات المسجلة داخل المجلد:\n${folderAssignments
+          .map(
+            (a, idx) =>
+              `${idx + 1}. [${a.type}] ${a.title}${a.contentText ? `\n   النص: ${a.contentText}` : ''}`
+          )
+          .join('\n\n')}`
+      : '';
+
   const chosenLevel: ExplanationLevel =
     level === 'simple' || level === 'deep' ? level : 'standard';
 
-  const systemInstruction = `أنت "المدرس الذكي" الخاص بمادة "${course.title}" (${course.code}) على منصة MAVIA التعليمية.
+  const systemInstruction = `أنت "المدرس الذكي" الخاص بمادة "${course.title}" (${course.code})${
+    folder ? ` — داخل مجلد "${folder.name}"` : ''
+  } على منصة MAVIA التعليمية.
 معلومات المادة:
 - الفرقة الدراسية للمادة: الفرقة ${course.year}
 - المسار: ${course.track}
 - المحاضر: ${course.instructor}
 - وصف المادة: ${course.description}
+${folder ? `- المجلد النشط: ${folder.name}${folder.description ? ` (${folder.description})` : ''}` : ''}
 
 بيانات الطالب:
 - الاسم: ${req.currentUser!.name}
@@ -106,7 +156,9 @@ router.post('/courses/:courseId/tutor', requireAuth, aiRateLimiter, async (req: 
 - ${getLevelInstruction(chosenLevel, req.currentUser!.year)}
 
 قواعد الشرح الصارمة:
-1. اعتمد أولاً وبشكل أساسي على محتوى الكتب وملفات PDF والملخصات المرفوعة لهذه المادة فقط (المرفقة لك كملفات PDF ونصوص بالأسفل).
+1. اعتمد أولاً وبشكل أساسي على محتوى الكتب وملفات PDF والملخصات والتكليفات المرفوعة ${
+    folder ? 'لهذا المجلد' : 'لهذه المادة'
+  } فقط (المرفقة لك كملفات PDF ونصوص بالأسفل).
 2. عند الشرح، اذكر اسم الكتاب أو الملخص الذي اعتمدت عليه إن وجد في المصادر المرفوعة.
 3. إذا سأل الطالب عن جزئية غير موجودة بعد في الكتب أو الملخصات المرفوعة، نبّهه بلطف أن هذه النقطة غير مذكورة في الملفات المرفوعة حالياً ثم اشرحها له بمستواه الأكاديمي في سياق المادة.
 4. اشرح باللغة العربية الواضحة والمنظمة (نقاط مرقّمة وأمثلة)، وتأكد أن الشرح يلائم مستوى الطالب المطلوب.
@@ -120,7 +172,7 @@ router.post('/courses/:courseId/tutor', requireAuth, aiRateLimiter, async (req: 
           .join('\n')}`
       : '';
 
-  const promptText = `الكتب والملخصات المسجلة لهذه المادة:\n${summariesText}${historyText}\n\nسؤال الطالب الحالي: ${question.trim()}`;
+  const promptText = `الكتب والملخصات المسجلة:\n${summariesText}${assignmentsText}${historyText}\n\nسؤال الطالب الحالي: ${question.trim()}`;
 
   parts.push({ text: promptText });
 

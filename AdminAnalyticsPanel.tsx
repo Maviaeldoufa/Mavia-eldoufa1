@@ -27,7 +27,7 @@ import type {
   PlatformConfig,
   SupportTicket,
 } from '../../types';
-import { apiRequest, getStoredToken } from '../../utils/api';
+import { apiRequest, getStoredToken, resolveApiUrl } from '../../utils/api';
 import { hasAdminPermission, hasAnyAdminPermission } from '../../utils/permissions';
 import { GoldChip } from '../ui/GoldChip';
 
@@ -87,7 +87,7 @@ export function AdminAnalyticsPanel() {
       const [bRes, eRes, sRes] = await Promise.all([
         apiRequest<{ backups: BackupFileInfo[] }>('/api/admin/system/backups'),
         apiRequest<{ errors: AppErrorLog[] }>('/api/admin/system/errors'),
-        fetch('/api/status').then((r) => (r.ok ? r.json() : null)),
+        fetch(resolveApiUrl('/api/status')).then((r) => (r.ok ? r.json() : null)),
       ]);
       setBackups(bRes.backups);
       setErrors(eRes.errors);
@@ -113,7 +113,7 @@ export function AdminAnalyticsPanel() {
     } else if (canManageSupport) {
       setActiveTab('support');
     }
-    fetch('/api/platform/config')
+    fetch(resolveApiUrl('/api/platform/config'))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.config) setConfig(d.config);
@@ -449,17 +449,11 @@ export function AdminAnalyticsPanel() {
 
           {/* Academic & Operations Overview Metrics */}
           {analytics.overview && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 text-xs">
               <div className="p-3 rounded-xl bg-[#09090B] border border-white/10">
                 <div className="text-[#A8A29E]">{tr('الطلاب', 'Students')}</div>
                 <div className="font-mono text-lg font-bold text-[#F5F0E6] tabular-nums mt-0.5">
                   {analytics.overview.studentsCount}
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-[#09090B] border border-white/10">
-                <div className="text-[#A8A29E]">{tr('بريد موثق', 'Verified Emails')}</div>
-                <div className="font-mono text-lg font-bold text-emerald-400 tabular-nums mt-0.5">
-                  {analytics.overview.verifiedEmailsCount}
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-[#09090B] border border-white/10">

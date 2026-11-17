@@ -486,6 +486,7 @@
         "manage_learning",
         "manage_community",
         "manage_students",
+        "manage_user_notes",
         "manage_support",
         "view_sensitive_data"
       ],

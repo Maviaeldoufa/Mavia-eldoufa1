@@ -315,16 +315,12 @@ export function AdminUserProfileModal({
               </div>
               <div>
                 <div className="text-[#A8A29E]">
-                  {tr('حالة البريد والحساب', 'Verification & Status')}
+                  {tr('حالة الحساب', 'Account Status')}
                 </div>
                 <div className="mt-0.5 font-medium text-[#F5F0E6]">
                   {profileData.user.isSuspended
                     ? tr('معلق', 'Suspended')
-                    : tr('نشط', 'Active')}{' '}
-                  ·{' '}
-                  {profileData.user.emailVerified
-                    ? tr('بريد موثق', 'Email Verified')
-                    : tr('بريد غير موثق', 'Unverified')}
+                    : tr('نشط', 'Active')}
                 </div>
               </div>
               <div>

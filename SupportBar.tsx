@@ -2,6 +2,7 @@ import { AlertTriangle, MessageCircle, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import type { PlatformConfig } from '../../types';
+import { resolveApiUrl } from '../../utils/api';
 
 const DEFAULT_CONFIG: PlatformConfig = {
   whatsappNumber: '01159637247',
@@ -21,7 +22,7 @@ export function SupportBar({ compact = false }: { compact?: boolean }) {
   const [config, setConfig] = useState<PlatformConfig>(DEFAULT_CONFIG);
 
   useEffect(() => {
-    fetch('/api/platform/config')
+    fetch(resolveApiUrl('/api/platform/config'))
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.config) {
