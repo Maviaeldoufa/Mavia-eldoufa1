@@ -20,7 +20,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import type { LectureNote, LectureVideo } from '../../types';
-import { apiRequest } from '../../utils/api';
+import { apiRequest, resolveApiUrl } from '../../utils/api';
 import { GoldChip } from '../ui/GoldChip';
 
 interface VttCue {
@@ -129,7 +129,7 @@ export function LectureTheaterModal({
       setCues([]);
       return;
     }
-    fetch(lecture.subtitleUrl)
+    fetch(resolveApiUrl(lecture.subtitleUrl))
       .then((r) => (r.ok ? r.text() : ''))
       .then((txt) => {
         if (txt) {
@@ -457,7 +457,7 @@ export function LectureTheaterModal({
               <div className="relative w-full aspect-video bg-[#050507] flex items-center justify-center">
                 <video
                   ref={videoRef}
-                  src={lecture.videoUrl}
+                  src={resolveApiUrl(lecture.videoUrl)}
                   playsInline
                   preload="metadata"
                   onClick={togglePlay}
@@ -652,7 +652,7 @@ export function LectureTheaterModal({
                   <div className="flex flex-wrap items-center gap-2">
                     {lecture.attachmentUrl && (
                       <a
-                        href={lecture.attachmentUrl}
+                        href={resolveApiUrl(lecture.attachmentUrl)}
                         download={lecture.attachmentName || 'lecture-material'}
                         className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#D4AF37] text-[#09090B] hover:bg-[#F5D061] transition-colors"
                       >
@@ -664,7 +664,7 @@ export function LectureTheaterModal({
                       </a>
                     )}
                     <a
-                      href={lecture.videoUrl}
+                      href={resolveApiUrl(lecture.videoUrl)}
                       download={`${lecture.title}.mp4`}
                       className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#151519] border border-[#D4AF37]/40 text-[#E5C158] hover:bg-[#D4AF37] hover:text-[#09090B] transition-colors"
                     >

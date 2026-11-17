@@ -1,11 +1,13 @@
-import { Award, ShieldCheck, Trophy } from 'lucide-react';
+import { Award, Eye, ShieldCheck, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import type { User } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { hasAnyAdminPermission } from '../../utils/permissions';
 import { GoldChip } from '../ui/GoldChip';
 import { RankBadge } from '../ui/RankBadge';
+import { AdminUserProfileModal } from './AdminUserProfileModal';
 
 export function LeaderboardPanel({ refreshTrigger }: { refreshTrigger?: number }) {
   const { user: currentUser } = useAuth();
@@ -13,6 +15,12 @@ export function LeaderboardPanel({ refreshTrigger }: { refreshTrigger?: number }
   const [selectedYear, setSelectedYear] = useState<number>(currentUser?.year || 0);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileTargetId, setProfileTargetId] = useState<string | null>(null);
+
+  const canInspectProfiles = hasAnyAdminPermission(currentUser, [
+    'manage_students',
+    'manage_user_notes',
+  ]);
 
   const yearFilters: Array<{ value: number; label: string }> = [
     { value: 0, label: tr('جميع الدفعات', 'All Years') },
@@ -132,9 +140,28 @@ export function LeaderboardPanel({ refreshTrigger }: { refreshTrigger?: number }
                     </td>
                     <td className="py-3.5 px-3 font-medium text-[#F5F0E6]">
                       <div className="flex items-center gap-2">
-                        <span>{student.name}</span>
+                        {canInspectProfiles ? (
+                          <button
+                            type="button"
+                            onClick={() => setProfileTargetId(student.id)}
+                            title={tr('فتح البروفايل وكتابة ملاحظة', 'Open Profile & Write Note')}
+                            className="inline-flex items-center gap-1.5 text-start hover:text-[#E5C158] cursor-pointer transition-colors underline decoration-[#D4AF37]/30 underline-offset-4"
+                          >
+                            <span>{student.name}</span>
+                            <Eye className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                          </button>
+                        ) : (
+                          <span>{student.name}</span>
+                        )}
                         {student.rankBadge ? (
-                          <RankBadge rankBadge={student.rankBadge} size="xs" />
+                          <>
+                            <RankBadge rankBadge={student.rankBadge} size="xs" />
+                            {student.rankBadge.isSuperAdminRank && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-400/40 text-[10px] font-bold text-amber-200 whitespace-nowrap">
+                                {tr('ليدر المنصة · للضرورة', 'Leader · Urgent')}
+                              </span>
+                            )}
+                          </>
                         ) : student.role === 'admin' ? (
                           <ShieldCheck
                             className="w-4 h-4 text-[#D4AF37] shrink-0"
@@ -169,6 +196,12 @@ export function LeaderboardPanel({ refreshTrigger }: { refreshTrigger?: number }
           </table>
         </div>
       )}
+
+      <AdminUserProfileModal
+        open={Boolean(profileTargetId)}
+        targetUserId={profileTargetId}
+        onClose={() => setProfileTargetId(null)}
+      />
     </section>
   );
 }

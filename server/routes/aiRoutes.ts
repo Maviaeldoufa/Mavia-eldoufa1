@@ -7,10 +7,10 @@ import { aiRateLimiter } from '../rateLimit.ts';
 
 const router = Router();
 
-const SYSTEM_INSTRUCTION = `أنت المساعد الذكي الرسمي لمنصة "MVIA" (MVIA Educational Platform).
+const SYSTEM_INSTRUCTION = `أنت المساعد الذكي الرسمي لمنصة "MAVIA" (MAVIA Educational Platform).
 مهمتك مساعدة الطلاب على التعرف على المنصة والإجابة عن أسئلتهم حول الدفعات والمواد والـ GIS والبرمجة باللغة العربية الواضحة والودودة أو الإنجليزية حسب لغة الطالب.
 
-معلومات دقيقة عن منصة MVIA:
+معلومات دقيقة عن منصة MAVIA:
 1. المنصة مصممة خصيصاً لجميع الدفعات الدراسية من الفرقة الأولى حتى الفرقة الرابعة.
 2. الأقسام الرئيسية داخل المنصة:
    - الرئيسية (Home): تحتوي على تعريف المنصة ولوحة التحكم الشخصية للطالب ومؤقتات أخبار الامتحانات القادمة ولوحة التصدر (Leaderboard)، بالإضافة إلى لوحة إدارة الأعضاء وزوار المنصة للأدمن.
@@ -53,7 +53,7 @@ router.post('/ai/chat', requireAuth, aiRateLimiter, async (req: AuthenticatedReq
     const conversationContext = Array.isArray(history) && history.length > 0
       ? history
           .slice(-6)
-          .map((h) => `${h.role === 'user' ? 'الطالب' : 'مساعد MVIA'}: ${h.text}`)
+          .map((h) => `${h.role === 'user' ? 'الطالب' : 'مساعد MAVIA'}: ${h.text}`)
           .join('\n') + `\nالطالب: ${message.trim()}`
       : message.trim();
 
@@ -66,7 +66,7 @@ router.post('/ai/chat', requireAuth, aiRateLimiter, async (req: AuthenticatedReq
     });
 
     res.json({
-      reply: response.text || 'أهلاً بك في منصة MVIA! كيف يمكنني مساعدتك اليوم؟',
+      reply: response.text || 'أهلاً بك في منصة MAVIA! كيف يمكنني مساعدتك اليوم؟',
     });
   } catch (err) {
     console.error('Gemini API Error:', err);

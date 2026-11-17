@@ -1,31 +1,16 @@
 import crypto from 'crypto';
 import { Router } from 'express';
-import fs from 'fs';
 import multer from 'multer';
-import path from 'path';
 import { requireAuth, requirePermission } from '../auth.ts';
 import type { AuthenticatedRequest } from '../auth.ts';
-import { db, pushNotification, UPLOADS_DIR } from '../db.ts';
+import { db, pushNotification } from '../db.ts';
+import { removeStoredFile, saveUploadedBuffer } from '../storage.ts';
 import type { AcademicYear, LectureNote } from '../types.ts';
 
 const router = Router();
 
-const diskStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    }
-    cb(null, UPLOADS_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.bin';
-    const safeName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
-    cb(null, safeName);
-  },
-});
-
 const uploadLectureFiles = multer({
-  storage: diskStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 250 * 1024 * 1024 },
 }).fields([
   { name: 'video', maxCount: 1 },
@@ -33,34 +18,15 @@ const uploadLectureFiles = multer({
   { name: 'attachment', maxCount: 1 },
 ]);
 
-function removeUploadedFile(fileUrl?: string) {
-  if (!fileUrl || !fileUrl.startsWith('/uploads/')) return;
-  const filePath = path.join(UPLOADS_DIR, path.basename(fileUrl));
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-    } catch {
-      // Ignore cleanup error
-    }
-  }
-}
-
-function convertSrtFileToVtt(filePath: string): string {
-  const raw = fs.readFileSync(filePath, 'utf-8');
+function convertSrtBufferToVtt(buffer: Buffer): Buffer {
+  const raw = buffer.toString('utf-8');
   const vttBody = raw
     .replace(/\r\n/g, '\n')
     .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
   const vttContent = vttBody.trimStart().startsWith('WEBVTT')
     ? vttBody
     : `WEBVTT\n\n${vttBody}`;
-  const vttPath = filePath.replace(/\.srt$/i, '.vtt');
-  fs.writeFileSync(vttPath, vttContent, 'utf-8');
-  try {
-    fs.unlinkSync(filePath);
-  } catch {
-    // Ignore
-  }
-  return path.basename(vttPath);
+  return Buffer.from(vttContent, 'utf-8');
 }
 
 // Learning Links
@@ -112,7 +78,7 @@ router.post('/learning', requireAuth, requirePermission('manage_learning'), (req
     type: type === 'platform' ? ('platform' as const) : ('youtube' as const),
     category: category || 'GIS',
     year: validYear,
-    description: description?.trim() || 'مصدر تعليمي مضاف بواسطة إدارة MVIA.',
+    description: description?.trim() || 'مصدر تعليمي مضاف بواسطة إدارة MAVIA.',
     createdAt: new Date().toISOString(),
   };
 
@@ -183,128 +149,161 @@ router.post(
       next();
     });
   },
-  (req: AuthenticatedRequest, res) => {
-    const {
-      title,
-      description,
-      category,
-      year,
-      instructor,
-      videoUrl,
-      allowDownload,
-      subtitlesText,
-    } = req.body as {
-      title?: string;
-      description?: string;
-      category?: 'GIS' | 'Programming' | 'General';
-      year?: string | number;
-      instructor?: string;
-      videoUrl?: string;
-      allowDownload?: string | boolean;
-      subtitlesText?: string;
-    };
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const {
+        title,
+        description,
+        category,
+        year,
+        instructor,
+        videoUrl,
+        allowDownload,
+        subtitlesText,
+      } = req.body as {
+        title?: string;
+        description?: string;
+        category?: 'GIS' | 'Programming' | 'General';
+        year?: string | number;
+        instructor?: string;
+        videoUrl?: string;
+        allowDownload?: string | boolean;
+        subtitlesText?: string;
+      };
 
-    if (!title?.trim()) {
-      res.status(400).json({ error: 'يرجى كتابة عنوان المحاضرة.' });
-      return;
-    }
-
-    const files = (req.files || {}) as Record<string, Express.Multer.File[]>;
-    const videoFile = files.video?.[0];
-    const subtitleFile = files.subtitle?.[0];
-    const attachmentFile = files.attachment?.[0];
-
-    const finalVideoUrl = videoFile
-      ? `/uploads/${videoFile.filename}`
-      : videoUrl?.trim();
-
-    if (!finalVideoUrl) {
-      res.status(400).json({ error: 'يرجى رفع ملف فيديو أو إدخال رابط فيديو مباشر.' });
-      return;
-    }
-
-    if (
-      !videoFile &&
-      !finalVideoUrl.startsWith('/uploads/') &&
-      !finalVideoUrl.startsWith('/assets/') &&
-      !/^https?:\/\//i.test(finalVideoUrl)
-    ) {
-      res.status(400).json({ error: 'رابط الفيديو يجب أن يبدأ بـ http:// أو https://.' });
-      return;
-    }
-
-    let finalSubtitleUrl: string | undefined;
-    if (subtitleFile) {
-      if (subtitleFile.filename.toLowerCase().endsWith('.srt')) {
-        const convertedName = convertSrtFileToVtt(subtitleFile.path);
-        finalSubtitleUrl = `/uploads/${convertedName}`;
-      } else {
-        finalSubtitleUrl = `/uploads/${subtitleFile.filename}`;
+      if (!title?.trim()) {
+        res.status(400).json({ error: 'يرجى كتابة عنوان المحاضرة.' });
+        return;
       }
-    } else if (subtitlesText?.trim()) {
-      const vttName = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.vtt`;
-      const content = subtitlesText.trimStart().startsWith('WEBVTT')
-        ? subtitlesText.trim()
-        : `WEBVTT\n\n00:00.000 --> 00:30.000\n${subtitlesText.trim()}`;
-      fs.writeFileSync(path.join(UPLOADS_DIR, vttName), content, 'utf-8');
-      finalSubtitleUrl = `/uploads/${vttName}`;
-    }
 
-    const parsedYear = Number(year || 0);
-    const validYear = ([0, 1, 2, 3, 4].includes(parsedYear) ? parsedYear : 0) as AcademicYear | 0;
+      const files = (req.files || {}) as Record<string, Express.Multer.File[]>;
+      const videoFile = files.video?.[0];
+      const subtitleFile = files.subtitle?.[0];
+      const attachmentFile = files.attachment?.[0];
 
-    const canDownload =
-      allowDownload === true ||
-      allowDownload === 'true' ||
-      allowDownload === '1';
+      if (
+        !videoFile &&
+        (!videoUrl?.trim() ||
+          (!videoUrl.trim().startsWith('/uploads/') &&
+            !videoUrl.trim().startsWith('/assets/') &&
+            !/^https?:\/\//i.test(videoUrl.trim())))
+      ) {
+        if (!videoUrl?.trim()) {
+          res.status(400).json({ error: 'يرجى رفع ملف فيديو أو إدخال رابط فيديو مباشر.' });
+        } else {
+          res.status(400).json({ error: 'رابط الفيديو يجب أن يبدأ بـ http:// أو https://.' });
+        }
+        return;
+      }
 
-    const store = db.get();
-    if (!store.lectures) {
-      store.lectures = [];
-    }
+      let finalVideoUrl = videoUrl?.trim() || '';
+      if (videoFile) {
+        const storedVideo = await saveUploadedBuffer({
+          buffer: videoFile.buffer,
+          originalName: videoFile.originalname || 'lecture.mp4',
+          mimeType: videoFile.mimetype || 'video/mp4',
+          folderPrefix: 'lectures',
+        });
+        finalVideoUrl = storedVideo.fileUrl;
+      }
 
-    const lecture = {
-      id: `lec-${crypto.randomUUID()}`,
-      title: title.trim(),
-      description: description?.trim() || 'محاضرة فيديو مسجلة على منصة MVIA.',
-      category: category || 'GIS',
-      year: validYear,
-      instructor: instructor?.trim() || req.currentUser!.name,
-      videoUrl: finalVideoUrl,
-      subtitleUrl: finalSubtitleUrl,
-      attachmentUrl: attachmentFile ? `/uploads/${attachmentFile.filename}` : undefined,
-      attachmentName: attachmentFile
-        ? Buffer.from(attachmentFile.originalname, 'latin1').toString('utf8')
-        : undefined,
-      attachmentSize: attachmentFile ? attachmentFile.size : undefined,
-      allowDownload: canDownload,
-      createdBy: req.currentUser!.name,
-      createdAt: new Date().toISOString(),
-    };
+      let finalSubtitleUrl: string | undefined;
+      if (subtitleFile) {
+        const isSrt = subtitleFile.originalname.toLowerCase().endsWith('.srt');
+        const subBuffer = isSrt
+          ? convertSrtBufferToVtt(subtitleFile.buffer)
+          : subtitleFile.buffer;
+        const storedSub = await saveUploadedBuffer({
+          buffer: subBuffer,
+          originalName: isSrt
+            ? subtitleFile.originalname.replace(/\.srt$/i, '.vtt')
+            : subtitleFile.originalname || 'subtitles.vtt',
+          mimeType: 'text/vtt; charset=utf-8',
+          folderPrefix: 'subtitles',
+        });
+        finalSubtitleUrl = storedSub.fileUrl;
+      } else if (subtitlesText?.trim()) {
+        const content = subtitlesText.trimStart().startsWith('WEBVTT')
+          ? subtitlesText.trim()
+          : `WEBVTT\n\n00:00.000 --> 00:30.000\n${subtitlesText.trim()}`;
+        const storedSub = await saveUploadedBuffer({
+          buffer: Buffer.from(content, 'utf-8'),
+          originalName: 'subtitles.vtt',
+          mimeType: 'text/vtt; charset=utf-8',
+          folderPrefix: 'subtitles',
+        });
+        finalSubtitleUrl = storedSub.fileUrl;
+      }
 
-    store.lectures.unshift(lecture);
-    db.save();
+      let finalAttachmentUrl: string | undefined;
+      if (attachmentFile) {
+        const storedAtt = await saveUploadedBuffer({
+          buffer: attachmentFile.buffer,
+          originalName: attachmentFile.originalname,
+          mimeType: attachmentFile.mimetype,
+          folderPrefix: 'lecture-attachments',
+        });
+        finalAttachmentUrl = storedAtt.fileUrl;
+      }
 
-    pushNotification({
-      title: `محاضرة فيديو جديدة: ${lecture.title}`,
-      message: 'يمكنك الآن مشاهدتها في مشغل المحاضرات الاحترافي بقسم Learning.',
-      type: 'lecture',
-      targetSection: 'learning',
-      year: validYear,
-      createdBy: req.currentUser!.name,
-    });
+      const parsedYear = Number(year || 0);
+      const validYear = ([0, 1, 2, 3, 4].includes(parsedYear) ? parsedYear : 0) as AcademicYear | 0;
 
-    res.status(201).json({
-      lecture: {
-        ...lecture,
-        myProgress: {
-          lastPositionSeconds: 0,
-          playbackRate: 1,
-          updatedAt: lecture.createdAt,
-          notes: [],
+      const canDownload =
+        allowDownload === true ||
+        allowDownload === 'true' ||
+        allowDownload === '1';
+
+      const store = db.get();
+      if (!store.lectures) {
+        store.lectures = [];
+      }
+
+      const lecture = {
+        id: `lec-${crypto.randomUUID()}`,
+        title: title.trim(),
+        description: description?.trim() || 'محاضرة فيديو مسجلة على منصة MAVIA.',
+        category: category || 'GIS',
+        year: validYear,
+        instructor: instructor?.trim() || req.currentUser!.name,
+        videoUrl: finalVideoUrl,
+        subtitleUrl: finalSubtitleUrl,
+        attachmentUrl: finalAttachmentUrl,
+        attachmentName: attachmentFile
+          ? Buffer.from(attachmentFile.originalname, 'latin1').toString('utf8')
+          : undefined,
+        attachmentSize: attachmentFile ? attachmentFile.size : undefined,
+        allowDownload: canDownload,
+        createdBy: req.currentUser!.name,
+        createdAt: new Date().toISOString(),
+      };
+
+      store.lectures.unshift(lecture);
+      db.save();
+
+      pushNotification({
+        title: `محاضرة فيديو جديدة: ${lecture.title}`,
+        message: 'يمكنك الآن مشاهدتها في مشغل المحاضرات الاحترافي بقسم Learning.',
+        type: 'lecture',
+        targetSection: 'learning',
+        year: validYear,
+        createdBy: req.currentUser!.name,
+      });
+
+      res.status(201).json({
+        lecture: {
+          ...lecture,
+          myProgress: {
+            lastPositionSeconds: 0,
+            playbackRate: 1,
+            updatedAt: lecture.createdAt,
+            notes: [],
+          },
         },
-      },
-    });
+      });
+    } catch (err) {
+      next(err);
+    }
   }
 );
 
@@ -327,20 +326,26 @@ router.patch(
   }
 );
 
-router.delete('/lectures/:id', requireAuth, requirePermission('manage_learning'), (req, res) => {
-  const { id } = req.params;
-  const store = db.get();
-  const target = (store.lectures || []).find((l) => l.id === id);
-  if (!target) {
-    res.status(404).json({ error: 'المحاضرة غير موجودة.' });
-    return;
+router.delete('/lectures/:id', requireAuth, requirePermission('manage_learning'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const store = db.get();
+    const target = (store.lectures || []).find((l) => l.id === id);
+    if (!target) {
+      res.status(404).json({ error: 'المحاضرة غير موجودة.' });
+      return;
+    }
+    await Promise.all([
+      removeStoredFile(target.videoUrl),
+      removeStoredFile(target.subtitleUrl),
+      removeStoredFile(target.attachmentUrl),
+    ]);
+    store.lectures = (store.lectures || []).filter((l) => l.id !== id);
+    db.save();
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
   }
-  removeUploadedFile(target.videoUrl);
-  removeUploadedFile(target.subtitleUrl);
-  removeUploadedFile(target.attachmentUrl);
-  store.lectures = (store.lectures || []).filter((l) => l.id !== id);
-  db.save();
-  res.json({ ok: true });
 });
 
 // Save auto-resume position and playback rate

@@ -4,17 +4,19 @@ import {
   Calculator,
   Compass,
   GraduationCap,
+  Headset,
   Home,
   MessageSquare,
   Send,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import type { NavSection } from '../../types';
 import { apiRequest } from '../../utils/api';
 import { GoldChip } from './GoldChip';
+import { SupportCenterModal } from './SupportCenterModal';
 
 interface ChatItem {
   id: string;
@@ -66,19 +68,47 @@ export function FloatingChatbotWidget({
 }: FloatingChatbotWidgetProps) {
   const { tr } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportLit, setSupportLit] = useState(false);
+  const [botLit, setBotLit] = useState(false);
+  const [supportHovered, setSupportHovered] = useState(false);
+  const [botHovered, setBotHovered] = useState(false);
+  const supportTimerRef = useRef<number | null>(null);
+  const botTimerRef = useRef<number | null>(null);
   const [messages, setMessages] = useState<ChatItem[]>([
     {
       id: 'guide-welcome',
       role: 'model',
       text: tr(
-        'أهلاً بك! أنا مرشد MVIA الذكي. لو تهت في أي وقت اسألني أو اضغط على أي قسم فوق للانتقال الفوري.',
-        'Welcome! I am the MVIA Smart Guide. Ask me anytime or jump straight to any section above.'
+        'أهلاً بك! أنا مرشد MAVIA الذكي. لو تهت في أي وقت اسألني أو اضغط على أي قسم فوق للانتقال الفوري.',
+        'Welcome! I am the MAVIA Smart Guide. Ask me anytime or jump straight to any section above.'
       ),
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (supportTimerRef.current !== null) window.clearTimeout(supportTimerRef.current);
+      if (botTimerRef.current !== null) window.clearTimeout(botTimerRef.current);
+    };
+  }, []);
+
+  const handleSupportClick = () => {
+    setSupportLit(true);
+    if (supportTimerRef.current !== null) window.clearTimeout(supportTimerRef.current);
+    supportTimerRef.current = window.setTimeout(() => setSupportLit(false), 850);
+    setSupportOpen(true);
+  };
+
+  const handleBotClick = () => {
+    setBotLit(true);
+    if (botTimerRef.current !== null) window.clearTimeout(botTimerRef.current);
+    botTimerRef.current = window.setTimeout(() => setBotLit(false), 850);
+    setOpen((prev) => !prev);
+  };
 
   const quickRoutes: Array<{
     id: NavSection;
@@ -93,7 +123,7 @@ export function FloatingChatbotWidget({
   ];
 
   const quickQuestions = [
-    tr('تايه ومش عارف أبدأ منين؟', 'Where should I start on MVIA?'),
+    tr('تايه ومش عارف أبدأ منين؟', 'Where should I start on MAVIA?'),
     tr('فين ملخصات PDF والاختبارات؟', 'Where are PDF summaries and quizzes?'),
     tr('إزاي أحسب معدلي GPA؟', 'How do I calculate my GPA?'),
     tr('فين شات الدفعة والجروبات؟', 'Where is batch chat and support?'),
@@ -172,7 +202,8 @@ export function FloatingChatbotWidget({
   };
 
   return (
-    <div className="fixed bottom-5 left-5 z-40 flex flex-col items-start gap-3">
+    <>
+    <div className="fixed bottom-4 left-4 sm:bottom-5 sm:left-5 z-40 flex flex-col items-start gap-2.5 sm:gap-3">
       <AnimatePresence>
         {open && (
           <motion.section
@@ -180,8 +211,8 @@ export function FloatingChatbotWidget({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.95 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            aria-label={tr('مرشد منصة MVIA الذكي', 'MVIA Smart Platform Guide')}
-            className="w-[calc(100vw-2.5rem)] sm:w-[390px] rounded-2xl bg-[#121216] border border-[#D4AF37]/45 shadow-[0_24px_70px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col"
+            aria-label={tr('مرشد منصة MAVIA الذكي', 'MAVIA Smart Platform Guide')}
+            className="w-[calc(100vw-2rem)] sm:w-[390px] max-h-[calc(100dvh-10rem)] rounded-2xl bg-[#121216] border border-[#D4AF37]/45 shadow-[0_24px_70px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col"
           >
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/10 bg-[#0D0D10] flex items-center justify-between gap-2">
@@ -191,7 +222,7 @@ export function FloatingChatbotWidget({
                 </div>
                 <div>
                   <h3 className="font-display text-sm font-bold text-[#E5C158]">
-                    {tr('مرشد MVIA الذكي', 'MVIA Smart Guide')}
+                    {tr('مرشد MAVIA الذكي', 'MAVIA Smart Guide')}
                   </h3>
                   <p className="text-[11px] text-[#A8A29E]">
                     {tr('دليلك السريع لكل أقسام المنصة', 'Quick navigation for every section')}
@@ -233,7 +264,7 @@ export function FloatingChatbotWidget({
             {/* Chat Messages */}
             <div
               ref={scrollRef}
-              className="h-64 overflow-y-auto p-3.5 space-y-2.5 bg-[#09090B]"
+              className="h-52 sm:h-64 overflow-y-auto p-3.5 space-y-2.5 bg-[#09090B]"
             >
               {messages.map((m) => (
                 <div
@@ -298,7 +329,7 @@ export function FloatingChatbotWidget({
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={tr('اسألني لو تهت في أي مكان...', 'Ask me anything about MVIA...')}
+                placeholder={tr('اسألني لو تهت في أي مكان...', 'Ask me anything about MAVIA...')}
                 className="flex-1 px-3 py-2 rounded-xl bg-[#09090B] border border-white/10 text-xs text-[#F5F0E6] placeholder-[#6B6661] focus:outline-none focus:border-[#D4AF37]"
               />
               <GoldChip
@@ -314,17 +345,109 @@ export function FloatingChatbotWidget({
         )}
       </AnimatePresence>
 
-      {/* Bottom-Left Floating Chatbot Launcher Button */}
-      <motion.button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.94 }}
-        aria-label={tr('فتح شات بوت إرشاد المنصة', 'Open MVIA Guide Chatbot')}
-        className="w-14 h-14 rounded-full bg-gradient-to-br from-[#D4AF37] via-[#E5C158] to-[#B68D20] text-[#09090B] shadow-[0_12px_32px_rgba(212,175,55,0.4)] border border-[#F5D061]/60 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5D061]"
-      >
-        {open ? <X className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
-      </motion.button>
+      {/* Bottom-Left Stacked Floating Icons: Technical Support directly ABOVE Chatbot */}
+      <div className="flex flex-col items-start gap-2.5 sm:gap-3">
+        {/* Technical Support Floating Icon (Above Chatbot) */}
+        <div className="relative flex items-center">
+          <motion.div
+            animate={{ y: [0, -5, 0] }}
+            transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
+            className="relative"
+          >
+            {/* Outer illumination halo */}
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute -inset-1.5 rounded-full blur-md transition-opacity duration-200 bg-emerald-400/55 ${
+                supportLit || supportHovered ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+            <motion.button
+              type="button"
+              onClick={handleSupportClick}
+              onMouseEnter={() => setSupportHovered(true)}
+              onMouseLeave={() => setSupportHovered(false)}
+              onFocus={() => setSupportHovered(true)}
+              onBlur={() => setSupportHovered(false)}
+              whileHover={{ scale: 1.09 }}
+              whileTap={{ scale: 0.93 }}
+              aria-label={tr('الدعم الفني والتواصل مع الإدارة', 'Technical Support & Contact')}
+              title={tr('الدعم الفني', 'Technical Support')}
+              className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[#0F2C24] via-[#134235] to-[#0B221C] text-emerald-200 border flex items-center justify-center cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                supportLit
+                  ? 'border-emerald-200 text-white brightness-125 shadow-[0_0_34px_rgba(52,211,153,0.95),0_0_62px_rgba(212,175,55,0.5)]'
+                  : supportHovered
+                  ? 'border-emerald-300 text-white brightness-110 shadow-[0_0_26px_rgba(52,211,153,0.8),0_0_42px_rgba(212,175,55,0.35)]'
+                  : 'border-emerald-400/55 shadow-[0_10px_28px_rgba(16,185,129,0.28)]'
+              }`}
+            >
+              <Headset className="w-5 h-5 sm:w-6 sm:h-6" />
+            </motion.button>
+          </motion.div>
+
+          {/* Side floating label shown smoothly on hover/focus */}
+          {supportHovered && (
+            <span className="pointer-events-none absolute left-full ml-2.5 px-2.5 py-1 rounded-lg bg-[#121216]/95 border border-emerald-400/50 text-emerald-200 text-[11px] font-semibold whitespace-nowrap shadow-lg">
+              {tr('الدعم الفني', 'Support')}
+            </span>
+          )}
+        </div>
+
+        {/* Bottom-Left Floating Chatbot Launcher Button */}
+        <div className="relative flex items-center">
+          <motion.div
+            animate={{ y: [0, -5, 0] }}
+            transition={{
+              duration: 3.8,
+              delay: 0.6,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            className="relative"
+          >
+            {/* Outer illumination halo */}
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute -inset-1.5 rounded-full blur-md transition-opacity duration-200 bg-[#FFF1B8]/60 ${
+                botLit || botHovered ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+            <motion.button
+              type="button"
+              onClick={handleBotClick}
+              onMouseEnter={() => setBotHovered(true)}
+              onMouseLeave={() => setBotHovered(false)}
+              onFocus={() => setBotHovered(true)}
+              onBlur={() => setBotHovered(false)}
+              whileHover={{ scale: 1.09 }}
+              whileTap={{ scale: 0.93 }}
+              aria-label={tr('فتح شات بوت إرشاد المنصة', 'Open MAVIA Guide Chatbot')}
+              title={tr('المرشد الذكي (الشات بوت)', 'MAVIA Smart Guide Chatbot')}
+              className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[#D4AF37] via-[#E5C158] to-[#B68D20] text-[#09090B] border flex items-center justify-center cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFF1B8] ${
+                botLit
+                  ? 'border-[#FFF6D6] brightness-125 shadow-[0_0_36px_rgba(255,241,184,0.95),0_0_68px_rgba(212,175,55,0.7)]'
+                  : botHovered
+                  ? 'border-[#FFF1B8] brightness-110 shadow-[0_0_28px_rgba(245,208,97,0.85),0_0_48px_rgba(212,175,55,0.5)]'
+                  : 'border-[#F5D061]/60 shadow-[0_12px_32px_rgba(212,175,55,0.4)]'
+              }`}
+            >
+              {open ? (
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
+              ) : (
+                <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
+              )}
+            </motion.button>
+          </motion.div>
+
+          {botHovered && !open && (
+            <span className="pointer-events-none absolute left-full ml-2.5 px-2.5 py-1 rounded-lg bg-[#121216]/95 border border-[#D4AF37]/60 text-[#F5D061] text-[11px] font-semibold whitespace-nowrap shadow-lg">
+              {tr('الشات بوت الذكي', 'Smart Guide')}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
+
+    <SupportCenterModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+    </>
   );
 }

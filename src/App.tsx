@@ -12,7 +12,7 @@ import { Navbar } from './components/ui/Navbar';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import type { NavSection, SystemStatusData } from './types';
-import { apiRequest, getStoredToken } from './utils/api';
+import { apiRequest, getStoredToken, resolveApiUrl } from './utils/api';
 
 const HomeSection = lazy(() =>
   import('./components/home/HomeSection').then((m) => ({ default: m.HomeSection }))
@@ -53,7 +53,7 @@ function getOrCreateVisitorKey(): string {
 
 function reportClientError(message: string, stack?: string) {
   const token = getStoredToken();
-  fetch('/api/monitoring/client-error', {
+  fetch(resolveApiUrl('/api/monitoring/client-error'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ function MviaWorkspace() {
 
   // Check initial maintenance status and listen for 503 maintenance responses
   useEffect(() => {
-    fetch('/api/status')
+    fetch(resolveApiUrl('/api/status'))
       .then((r) => (r.ok ? (r.json() as Promise<SystemStatusData>) : null))
       .then((data) => {
         if (data?.maintenance?.enabled) {
@@ -134,7 +134,7 @@ function MviaWorkspace() {
     const alreadyCounted = sessionStorage.getItem(VISIT_SESSION_FLAG) === '1';
     const token = getStoredToken();
 
-    fetch('/api/analytics/visit', {
+    fetch(resolveApiUrl('/api/analytics/visit'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -179,7 +179,7 @@ function MviaWorkspace() {
         <div className="relative z-10 text-center space-y-3 flex flex-col items-center">
           <MviaBrandMark size="lg" />
           <p className="text-xs text-[#A8A29E]">
-            {tr('جاري تحميل المنصة...', 'Loading MVIA platform...')}
+            {tr('جاري تحميل المنصة...', 'Loading MAVIA platform...')}
           </p>
         </div>
       </div>

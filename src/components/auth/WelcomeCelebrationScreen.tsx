@@ -47,8 +47,8 @@ export function WelcomeCelebrationScreen() {
               <Sparkles className="w-4 h-4" />
               <span>
                 {tr(
-                  'تم تفعيل حسابك بنجاح في عائلة MVIA',
-                  'Your account is now active in the MVIA family'
+                  'تم تفعيل حسابك بنجاح في عائلة MAVIA',
+                  'Your account is now active in the MAVIA family'
                 )}
               </span>
             </div>
@@ -60,7 +60,7 @@ export function WelcomeCelebrationScreen() {
             <p className="text-sm sm:text-base text-[#C8C2B8] leading-relaxed">
               {tr('أهلاً بك يا', 'Welcome')}{' '}
               <strong className="text-[#F5F0E6]">{user.name}</strong>{' '}
-              {tr('في منصة MVIA التعليمية. أصبح بإمكانك الآن الوصول لجميع مواد', 'to MVIA Educational Platform. You now have access to')}{' '}
+              {tr('في منصة MAVIA التعليمية. أصبح بإمكانك الآن الوصول لجميع مواد', 'to MAVIA Educational Platform. You now have access to')}{' '}
               <strong className="text-[#E5C158]">{formatYear(user.year)}</strong>
               {tr(
                 '، الملخصات، الاختبارات الشاملة، والتواصل المباشر مع دفعتك.',
@@ -92,7 +92,7 @@ export function WelcomeCelebrationScreen() {
             onClick={clearJustRegistered}
             className="w-full sm:w-auto px-8 py-3.5 text-base"
           >
-            <span>{tr('ابدأ رحلتك في منصة MVIA', 'Start Your Journey on MVIA')}</span>
+            <span>{tr('ابدأ رحلتك في منصة MAVIA', 'Start Your Journey on MAVIA')}</span>
             {isEn ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
           </GoldChip>
         </motion.div>

@@ -4,6 +4,8 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Headset,
+  KeyRound,
   Lock,
   MessageCircle,
   Pencil,
@@ -27,11 +29,18 @@ import type {
   AdminRankColor,
   AdminRankIcon,
   AdminRanksDirectoryResponse,
+  SupportTeamMember,
 } from '../../types';
 import { apiRequest } from '../../utils/api';
-import { hasAdminPermission, isSuperAdminUser } from '../../utils/permissions';
+import {
+  hasAdminPermission,
+  hasAnyAdminPermission,
+  isSuperAdminUser,
+} from '../../utils/permissions';
 import { GoldChip } from '../ui/GoldChip';
+import { PasswordInput } from '../ui/PasswordInput';
 import { RankIconGlyph, getRankIconBoxClass } from '../ui/RankBadge';
+import { WhatsAppMark } from '../ui/WhatsAppMark';
 
 const BADGE_ICON_OPTIONS: Array<{ value: AdminRankIcon; labelAr: string }> = [
   { value: 'crown', labelAr: 'تاج (المدير العام)' },
@@ -62,18 +71,33 @@ export function AdminRanksPanel({
   const { tr } = useLanguage();
 
   const canAccess =
+    isSuperAdminUser(user) ||
+    hasAnyAdminPermission(user, ['manage_officials', 'manage_support']);
+  const canManageOfficials =
     isSuperAdminUser(user) || hasAdminPermission(user, 'manage_officials');
 
   const [ranks, setRanks] = useState<AdminRank[]>([]);
   const [officials, setOfficials] = useState<AdminOfficial[]>([]);
+  const [supportTeam, setSupportTeam] = useState<SupportTeamMember[]>([]);
+  const [maxSupportTeamSize, setMaxSupportTeamSize] = useState(7);
   const [candidates, setCandidates] = useState<AdminRankCandidateUser[]>([]);
   const [permissionsCatalog, setPermissionsCatalog] = useState<AdminPermissionMeta[]>([]);
   const [canEditRanks, setCanEditRanks] = useState(false);
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'officials' | 'ranks'>('officials');
+  const [activeTab, setActiveTab] = useState<
+    'supportTeam' | 'officials' | 'ranks' | 'activationPassword'
+  >('supportTeam');
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Super Admin ONLY: custom Admin Activation Password configuration
+  const [activationConfigured, setActivationConfigured] = useState(false);
+  const [activationUpdatedAt, setActivationUpdatedAt] = useState<string | null>(null);
+  const [activationDefaultRankId, setActivationDefaultRankId] =
+    useState('rank-deputy-director');
+  const [activationPassInput, setActivationPassInput] = useState('');
+  const [savingActivationPass, setSavingActivationPass] = useState(false);
 
   // Selected rank for editing name / icon / permissions
   const [selectedRankId, setSelectedRankId] = useState<string>('rank-super-admin');
@@ -107,6 +131,25 @@ export function AdminRanksPanel({
   const [editActive, setEditActive] = useState(true);
   const [updatingOfficialId, setUpdatingOfficialId] = useState<string | null>(null);
 
+  // Assign / Edit 7-member Technical Support Team state
+  const [showSupportForm, setShowSupportForm] = useState(false);
+  const [supportSlotNumber, setSupportSlotNumber] = useState<number>(1);
+  const [supportUserId, setSupportUserId] = useState('');
+  const [supportDisplayName, setSupportDisplayName] = useState('');
+  const [supportSpecialty, setSupportSpecialty] = useState('');
+  const [supportWhatsapp, setSupportWhatsapp] = useState('');
+  const [supportIsActive, setSupportIsActive] = useState(true);
+  const [savingSupportMember, setSavingSupportMember] = useState(false);
+
+  const [editingSupportMember, setEditingSupportMember] =
+    useState<SupportTeamMember | null>(null);
+  const [editSupportSlot, setEditSupportSlot] = useState<number>(1);
+  const [editSupportDisplayName, setEditSupportDisplayName] = useState('');
+  const [editSupportSpecialty, setEditSupportSpecialty] = useState('');
+  const [editSupportWhatsapp, setEditSupportWhatsapp] = useState('');
+  const [editSupportActive, setEditSupportActive] = useState(true);
+  const [updatingSupportId, setUpdatingSupportId] = useState<string | null>(null);
+
   const loadDirectory = useCallback(async () => {
     if (!canAccess) return;
     setLoading(true);
@@ -114,14 +157,29 @@ export function AdminRanksPanel({
       const data = await apiRequest<AdminRanksDirectoryResponse>('/api/admin/ranks');
       setRanks(data.ranks || []);
       setOfficials(data.officials || []);
+      setSupportTeam(data.supportTeam || []);
+      setMaxSupportTeamSize(data.maxSupportTeamSize || 7);
       setCandidates(data.candidates || []);
       setPermissionsCatalog(data.permissionsCatalog || []);
       setCanEditRanks(Boolean(data.canEditRanks));
+      if (data.canEditRanks) {
+        apiRequest<{
+          configured: boolean;
+          updatedAt: string | null;
+          defaultRankId: string;
+        }>('/api/admin/activation-password')
+          .then((cfg) => {
+            setActivationConfigured(cfg.configured);
+            setActivationUpdatedAt(cfg.updatedAt);
+            if (cfg.defaultRankId) setActivationDefaultRankId(cfg.defaultRankId);
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       setErrorMsg(
         err instanceof Error
           ? err.message
-          : tr('تعذر تحميل هيكل الرتب الإدارية.', 'Failed to load admin ranks.')
+          : tr('تعذر تحميل هيكل الرتب والدعم الفني.', 'Failed to load admin directory.')
       );
     } finally {
       setLoading(false);
@@ -314,6 +372,220 @@ export function AdminRanksPanel({
     }
   };
 
+  // --- Support Team (7 slots) Handlers ---
+  const openAssignSupportSlot = (slot: number) => {
+    setSupportSlotNumber(slot);
+    setSupportUserId('');
+    setSupportDisplayName('');
+    setSupportSpecialty('');
+    setSupportWhatsapp('');
+    setSupportIsActive(true);
+    setShowSupportForm(true);
+  };
+
+  const handleAssignSupportMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSupportMember(true);
+    setErrorMsg(null);
+    try {
+      await apiRequest('/api/admin/support-team', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: supportUserId,
+          slotNumber: supportSlotNumber,
+          displayName: supportDisplayName,
+          specialty: supportSpecialty,
+          whatsappNumber: supportWhatsapp,
+          isActive: supportIsActive,
+        }),
+      });
+      setShowSupportForm(false);
+      setSupportUserId('');
+      setSupportDisplayName('');
+      setSupportSpecialty('');
+      setSupportWhatsapp('');
+      await loadDirectory();
+      onDirectoryChanged?.();
+      showToast(
+        tr(
+          `تم تعيين عضو الدعم الفني في المقعد #${supportSlotNumber} بنجاح.`,
+          `Support team member assigned to Slot #${supportSlotNumber}.`
+        )
+      );
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : tr('تعذر تعيين عضو الدعم الفني.', 'Failed to assign support team member.')
+      );
+    } finally {
+      setSavingSupportMember(false);
+    }
+  };
+
+  const openEditSupportMember = (member: SupportTeamMember) => {
+    setEditingSupportMember(member);
+    setEditSupportSlot(member.slotNumber);
+    setEditSupportDisplayName(member.displayName);
+    setEditSupportSpecialty(member.specialty || '');
+    setEditSupportWhatsapp('');
+    setEditSupportActive(member.isActive);
+  };
+
+  const handleSaveSupportEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSupportMember) return;
+    setUpdatingSupportId(editingSupportMember.id);
+    setErrorMsg(null);
+    try {
+      await apiRequest(
+        `/api/admin/support-team/${encodeURIComponent(editingSupportMember.id)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            slotNumber: editSupportSlot,
+            displayName: editSupportDisplayName,
+            specialty: editSupportSpecialty,
+            ...(editSupportWhatsapp.trim()
+              ? { whatsappNumber: editSupportWhatsapp.trim() }
+              : {}),
+            isActive: editSupportActive,
+          }),
+        }
+      );
+      setEditingSupportMember(null);
+      await loadDirectory();
+      onDirectoryChanged?.();
+      showToast(
+        tr('تم تحديث بيانات عضو الدعم الفني بنجاح.', 'Support team member updated successfully.')
+      );
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : tr('تعذر تحديث بيانات عضو الدعم الفني.', 'Failed to update support member.')
+      );
+    } finally {
+      setUpdatingSupportId(null);
+    }
+  };
+
+  const handleToggleSupportMemberActive = async (member: SupportTeamMember) => {
+    setUpdatingSupportId(member.id);
+    setErrorMsg(null);
+    try {
+      await apiRequest(`/api/admin/support-team/${encodeURIComponent(member.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: !member.isActive }),
+      });
+      await loadDirectory();
+      onDirectoryChanged?.();
+      showToast(tr('تم تحديث حالة عضو الدعم الفني.', 'Support member status updated.'));
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : tr('تعذر تعديل حالة العضو.', 'Failed to toggle support member.')
+      );
+    } finally {
+      setUpdatingSupportId(null);
+    }
+  };
+
+  const handleRemoveSupportMember = async (member: SupportTeamMember) => {
+    setUpdatingSupportId(member.id);
+    setErrorMsg(null);
+    try {
+      await apiRequest(`/api/admin/support-team/${encodeURIComponent(member.id)}`, {
+        method: 'DELETE',
+      });
+      await loadDirectory();
+      onDirectoryChanged?.();
+      showToast(
+        tr('تمت إزالة العضو من فريق الدعم الفني بنجاح.', 'Member removed from Support Team.')
+      );
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : tr('تعذر إزالة عضو الدعم الفني.', 'Failed to remove support member.')
+      );
+    } finally {
+      setUpdatingSupportId(null);
+    }
+  };
+
+  const handleSaveActivationPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canEditRanks) return;
+    setSavingActivationPass(true);
+    setErrorMsg(null);
+    try {
+      const res = await apiRequest<{
+        configured: boolean;
+        updatedAt: string | null;
+        defaultRankId: string;
+      }>('/api/admin/activation-password', {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...(activationPassInput.trim() ? { password: activationPassInput.trim() } : {}),
+          defaultRankId: activationDefaultRankId,
+        }),
+      });
+      setActivationConfigured(res.configured);
+      setActivationUpdatedAt(res.updatedAt);
+      setActivationDefaultRankId(res.defaultRankId);
+      setActivationPassInput('');
+      showToast(
+        tr(
+          'تم حفظ كلمة سر تفعيل صلاحية الأدمن والرتبة الافتراضية بنجاح.',
+          'Custom admin activation password saved successfully.'
+        )
+      );
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : tr('تعذر حفظ كلمة سر تفعيل الأدمن.', 'Failed to save activation password.')
+      );
+    } finally {
+      setSavingActivationPass(false);
+    }
+  };
+
+  const handleClearActivationPassword = async () => {
+    if (!canEditRanks) return;
+    setSavingActivationPass(true);
+    setErrorMsg(null);
+    try {
+      const res = await apiRequest<{
+        configured: boolean;
+        updatedAt: string | null;
+        defaultRankId: string;
+      }>('/api/admin/activation-password', {
+        method: 'PUT',
+        body: JSON.stringify({ clear: true }),
+      });
+      setActivationConfigured(res.configured);
+      setActivationUpdatedAt(res.updatedAt);
+      setActivationPassInput('');
+      showToast(
+        tr(
+          'تم إيقاف ومسح كلمة سر تفعيل صلاحية الأدمن.',
+          'Custom admin activation password cleared.'
+        )
+      );
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : tr('تعذر مسح كلمة سر التفعيل.', 'Failed to clear activation password.')
+      );
+    } finally {
+      setSavingActivationPass(false);
+    }
+  };
+
   const currentRankObj = ranks.find((r) => r.id === selectedRankId);
   const assignableRanks = canEditRanks
     ? ranks
@@ -326,6 +598,8 @@ export function AdminRanksPanel({
     return true;
   });
 
+  const supportSlots = Array.from({ length: maxSupportTeamSize }, (_, idx) => idx + 1);
+
   return (
     <section className="rounded-2xl bg-[#121216] border border-[#D4AF37]/30 p-5 sm:p-6 space-y-6">
       {/* Header */}
@@ -337,7 +611,7 @@ export function AdminRanksPanel({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-display text-lg sm:text-xl font-bold text-[#F5F0E6]">
-                {tr('إدارة الرتب والمسؤولين والدعم الفني', 'Admin Ranks, Officials & Support Control')}
+                {tr('إدارة فريق الدعم الفني والرتب والمسؤولين', 'Support Team, Ranks & Officials Control')}
               </h2>
               <span className="text-[11px] font-semibold text-[#E5C158]">
                 {canEditRanks
@@ -347,8 +621,8 @@ export function AdminRanksPanel({
             </div>
             <p className="text-xs text-[#A8A29E] leading-relaxed">
               {tr(
-                'إدارة المناصب الإدارية السبعة، تعيين المسؤولين الحقيقيين وربط واتساب الدعم، نقل المسؤولين بين الأقسام، وتوزيع الصلاحيات بدقة.',
-                'Manage the 7 administrative ranks, assign real officials, control Support Center visibility, transfer across departments, and set granular permissions.'
+                'اختيار فريق الدعم الفني المكون من 7 أشخاص من مستخدمي المنصة، بجانب إدارة المناصب الإدارية السبعة والمسؤولين وصلاحياتهم.',
+                'Select the 7-person Technical Support Team from registered users, and manage the 7 administrative ranks and permissions.'
               )}
             </p>
           </div>
@@ -365,20 +639,47 @@ export function AdminRanksPanel({
           </button>
 
           <GoldChip
-            active={activeTab === 'officials'}
-            onClick={() => setActiveTab('officials')}
+            active={activeTab === 'supportTeam'}
+            onClick={() => setActiveTab('supportTeam')}
           >
-            <UserPlus className="w-4 h-4" />
-            <span>{tr('المسؤولون والتواصل', 'Officials & Contacts')}</span>
+            <Headset className="w-4 h-4" />
+            <span>
+              {tr(
+                `فريق الدعم الفني (${supportTeam.length}/${maxSupportTeamSize})`,
+                `Support Team (${supportTeam.length}/${maxSupportTeamSize})`
+              )}
+            </span>
           </GoldChip>
 
-          <GoldChip
-            active={activeTab === 'ranks'}
-            onClick={() => setActiveTab('ranks')}
-          >
-            <Shield className="w-4 h-4" />
-            <span>{tr('الرتب السبعة والصلاحيات', '7 Ranks & Permissions')}</span>
-          </GoldChip>
+          {canManageOfficials && (
+            <GoldChip
+              active={activeTab === 'officials'}
+              onClick={() => setActiveTab('officials')}
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>{tr('المسؤولون والتواصل', 'Officials & Contacts')}</span>
+            </GoldChip>
+          )}
+
+          {canManageOfficials && (
+            <GoldChip
+              active={activeTab === 'ranks'}
+              onClick={() => setActiveTab('ranks')}
+            >
+              <Shield className="w-4 h-4" />
+              <span>{tr('الرتب السبعة والصلاحيات', '7 Ranks & Permissions')}</span>
+            </GoldChip>
+          )}
+
+          {canEditRanks && (
+            <GoldChip
+              active={activeTab === 'activationPassword'}
+              onClick={() => setActiveTab('activationPassword')}
+            >
+              <KeyRound className="w-4 h-4" />
+              <span>{tr('باسورد تفعيل الأدمن', 'Admin Activation Password')}</span>
+            </GoldChip>
+          )}
         </div>
       </div>
 
@@ -395,7 +696,321 @@ export function AdminRanksPanel({
         </div>
       )}
 
-      {activeTab === 'officials' ? (
+      {activeTab === 'supportTeam' ? (
+        /* Tab 1: 7-Person Admin-Selected Technical Support Team */
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="text-sm font-bold text-[#E5C158]">
+                {tr(
+                  `اختيار أعضاء فريق الدعم الفني (${supportTeam.length} من ${maxSupportTeamSize} مقاعد)`,
+                  `Admin-Selected Technical Support Team (${supportTeam.length}/${maxSupportTeamSize} seats)`
+                )}
+              </div>
+              <p className="text-xs text-[#A8A29E]">
+                {tr(
+                  'يمكنك اختيار حتى 7 أشخاص من مستخدمي المنصة ليظهروا للطلاب داخل مركز الدعم الفني.',
+                  'Pick up to 7 platform users to serve on the Technical Support Team shown to students.'
+                )}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (showSupportForm) {
+                  setShowSupportForm(false);
+                  return;
+                }
+                const firstEmpty =
+                  supportSlots.find(
+                    (s) => !supportTeam.some((m) => m.slotNumber === s)
+                  ) || 1;
+                openAssignSupportSlot(firstEmpty);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#D4AF37] text-[#09090B] text-xs font-bold hover:bg-[#E5C158] cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{tr('اختيار عضو دعم فني', 'Assign Support Member')}</span>
+            </button>
+          </div>
+
+          {showSupportForm && (
+            <form
+              onSubmit={handleAssignSupportMember}
+              className="p-4 sm:p-5 rounded-2xl bg-[#0D0D10] border border-[#D4AF37]/35 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-[#E5C158]">
+                  {tr(
+                    `تعيين عضو في المقعد #${supportSlotNumber} بفريق الدعم الفني`,
+                    `Assign User to Support Seat #${supportSlotNumber}`
+                  )}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowSupportForm(false)}
+                  className="text-xs text-[#A8A29E] hover:text-white cursor-pointer"
+                >
+                  {tr('إغلاق', 'Close')}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-[#C8C2B8] block">
+                    {tr('رقم المقعد (من 1 إلى 7)', 'Support Slot (1..7)')}
+                  </label>
+                  <select
+                    value={supportSlotNumber}
+                    onChange={(e) => setSupportSlotNumber(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6]"
+                  >
+                    {supportSlots.map((slot) => {
+                      const occupied = supportTeam.find((m) => m.slotNumber === slot);
+                      return (
+                        <option key={slot} value={slot}>
+                          {tr(`المقعد #${slot}`, `Slot #${slot}`)}
+                          {occupied ? ` — (${occupied.displayName})` : ` (${tr('شاغر', 'Empty')})`}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-[#C8C2B8] block">
+                    {tr('اختر المستخدم من المنصة', 'Select Platform User')}
+                  </label>
+                  <select
+                    required
+                    value={supportUserId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSupportUserId(id);
+                      const found = candidates.find((c) => c.id === id);
+                      if (found) {
+                        setSupportDisplayName(found.name);
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6]"
+                  >
+                    <option value="">{tr('-- اختر المستخدم --', '-- Select User --')}</option>
+                    {candidates.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-[#C8C2B8] block">
+                    {tr('الاسم الظاهر في الدعم الفني', 'Display Name in Support')}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={supportDisplayName}
+                    onChange={(e) => setSupportDisplayName(e.target.value)}
+                    placeholder={tr('مثال: م. سارة — دعم فني', 'e.g. Eng. Sara')}
+                    className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-[#C8C2B8] block">
+                    {tr('رقم WhatsApp الخاص بالتواصل (اختياري الآن)', 'WhatsApp Number (Optional)')}
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={supportWhatsapp}
+                    onChange={(e) => setSupportWhatsapp(e.target.value)}
+                    placeholder="01012345678"
+                    className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6] font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs text-[#C8C2B8] block">
+                    {tr('التخصص أو نطاق المساعدة (اختياري)', 'Specialty / Scope (Optional)')}
+                  </label>
+                  <input
+                    type="text"
+                    value={supportSpecialty}
+                    onChange={(e) => setSupportSpecialty(e.target.value)}
+                    placeholder={tr(
+                      'مثال: دعم الفرقة الأولى ومشاكل الاختبارات',
+                      'e.g. Year 1 support & quiz troubleshooting'
+                    )}
+                    className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6]"
+                  />
+                </div>
+              </div>
+
+              <label className="inline-flex items-center gap-2 text-xs text-[#C8C2B8] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={supportIsActive}
+                  onChange={(e) => setSupportIsActive(e.target.checked)}
+                  className="accent-[#D4AF37]"
+                />
+                <span>{tr('نشط وظاهر للطلاب في نافذة الدعم الفني', 'Active & visible to students')}</span>
+              </label>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingSupportMember}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#D4AF37] text-[#09090B] text-xs font-bold hover:bg-[#E5C158] disabled:opacity-50 cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>
+                    {savingSupportMember
+                      ? tr('جاري الحفظ...', 'Saving...')
+                      : tr('حفظ وتعيين في فريق الدعم', 'Assign to Support Team')}
+                  </span>
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* 7 Seats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {supportSlots.map((slot) => {
+              const member = supportTeam.find((m) => m.slotNumber === slot);
+              if (!member) {
+                return (
+                  <div
+                    key={slot}
+                    className="p-4 rounded-xl bg-[#0D0D10]/75 border border-dashed border-white/15 flex flex-col justify-between gap-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[11px] font-mono tabular-nums text-[#A8A29E]">
+                        #{slot}
+                      </span>
+                      <span className="text-[11px] text-[#6B665E]">
+                        {tr('مقعد شاغر', 'Vacant Seat')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#A8A29E]">
+                      {tr(
+                        `اختر الشخص رقم ${slot} في فريق الدعم الفني.`,
+                        `Select support team member #${slot}.`
+                      )}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => openAssignSupportSlot(slot)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#18181D] border border-[#D4AF37]/35 text-xs font-semibold text-[#E5C158] hover:bg-[#D4AF37]/15 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{tr(`تعيين للمقعد #${slot}`, `Assign Seat #${slot}`)}</span>
+                    </button>
+                  </div>
+                );
+              }
+
+              const baseUser = candidates.find((c) => c.id === member.userId);
+              const isBusy = updatingSupportId === member.id;
+
+              return (
+                <div
+                  key={member.id}
+                  className="p-4 rounded-xl bg-[#0D0D10] border border-[#D4AF37]/25 space-y-3 flex flex-col justify-between"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="px-2 py-0.5 rounded-md bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[11px] font-mono tabular-nums text-[#F5D061] font-bold shrink-0">
+                          #{member.slotNumber}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-[#F5F0E6] truncate">
+                            {member.displayName}
+                          </div>
+                          {baseUser && (
+                            <div className="text-[11px] text-[#A8A29E] truncate">
+                              {baseUser.name} · {baseUser.role}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <span
+                        className={`text-[11px] font-semibold shrink-0 ${
+                          member.isActive ? 'text-emerald-300' : 'text-red-300'
+                        }`}
+                      >
+                        {member.isActive ? tr('نشط', 'Active') : tr('متوقف', 'Inactive')}
+                      </span>
+                    </div>
+
+                    {member.specialty && (
+                      <p className="text-xs text-[#C8C2B8] leading-snug line-clamp-2">
+                        {member.specialty}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between gap-2 text-xs bg-[#151519] px-3 py-1.5 rounded-lg border border-white/5">
+                      <span className="text-[#A8A29E] flex items-center gap-1.5">
+                        <WhatsAppMark className="w-3.5 h-3.5 shrink-0" />
+                        <span>{tr('واتساب:', 'WhatsApp:')}</span>
+                      </span>
+                      {member.whatsappNumber ? (
+                        <span className="font-mono text-[#F5F0E6] tabular-nums" dir="ltr">
+                          {member.whatsappNumber}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openEditSupportMember(member)}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#F5D061] hover:underline cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>{tr('إضافة رقم', 'Add Number')}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => openEditSupportMember(member)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181D] border border-white/15 text-[11px] text-[#F5F0E6] hover:border-[#D4AF37]/50 cursor-pointer"
+                    >
+                      <Pencil className="w-3 h-3 text-[#D4AF37]" />
+                      <span>{tr('تعديل', 'Edit')}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => handleToggleSupportMemberActive(member)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181D] border border-white/15 text-[11px] text-[#C8C2B8] hover:border-[#D4AF37]/50 cursor-pointer"
+                    >
+                      {member.isActive ? tr('إيقاف مؤقت', 'Pause') : tr('تنشيط', 'Activate')}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => handleRemoveSupportMember(member)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-950/35 border border-red-500/35 text-[11px] text-red-200 hover:bg-red-700 hover:text-white cursor-pointer ms-auto"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>{tr('إزالة', 'Remove')}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : activeTab === 'officials' && canManageOfficials ? (
         <div className="space-y-5">
           {/* Action bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -503,11 +1118,10 @@ export function AdminRanksPanel({
 
                 <div className="space-y-1">
                   <label className="text-xs text-[#C8C2B8] block">
-                    {tr('رقم WhatsApp الخاص بالتواصل (محمي على الخادم)', 'Private WhatsApp Number')}
+                    {tr('رقم WhatsApp الخاص بالتواصل (اختياري الآن)', 'Private WhatsApp Number (Optional)')}
                   </label>
                   <input
                     type="text"
-                    required
                     dir="ltr"
                     value={assignWhatsapp}
                     onChange={(e) => setAssignWhatsapp(e.target.value)}
@@ -725,7 +1339,7 @@ export function AdminRanksPanel({
           )}
         </div>
       ) : (
-        /* Tab 2: 7 Administrative Ranks & Permissions */
+        /* Tab 3: 7 Administrative Ranks & Permissions */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           {/* 7 Ranks Selector */}
           <div className="lg:col-span-5 space-y-2">
@@ -759,8 +1373,13 @@ export function AdminRanksPanel({
                       />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-xs sm:text-sm font-bold truncate">
-                        {r.displayOrder}. {r.nameAr}
+                      <div className="text-xs sm:text-sm font-bold truncate flex flex-wrap items-center gap-1.5">
+                        <span>{r.displayOrder}. {r.nameAr}</span>
+                        {r.isSuperAdminRank && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/45 text-[10px] font-bold text-amber-200">
+                            {tr('ليدر المنصة · للضرورة', 'Leader · Urgent')}
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-[#A8A29E] tabular-nums">
                         {tr(
@@ -969,6 +1588,241 @@ export function AdminRanksPanel({
         </div>
       )}
 
+      {activeTab === 'activationPassword' && canEditRanks && (
+        <form
+          onSubmit={handleSaveActivationPassword}
+          className="p-4 sm:p-5 rounded-2xl bg-[#0D0D10] border border-[#D4AF37]/35 space-y-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-[#D4AF37]" />
+              <h3 className="text-sm font-bold text-[#E5C158]">
+                {tr(
+                  'تعيين باسورد تفعيل صلاحية الأدمن (حصري لمدير المنصة العام)',
+                  'Custom Admin Activation Password (Super Admin Only)'
+                )}
+              </h3>
+            </div>
+            <span
+              className={`text-xs font-semibold ${
+                activationConfigured ? 'text-emerald-300' : 'text-amber-300'
+              }`}
+            >
+              {activationConfigured
+                ? tr('مفعّل حالياً', 'Active & Configured')
+                : tr('غير مفعّل بعد', 'Not Configured')}
+            </span>
+          </div>
+
+          <p className="text-xs text-[#A8A29E] leading-relaxed">
+            {tr(
+              'اكتب كلمة السر التي تتيح لمن تعطيها له تفعيل صلاحية الأدمن من نافذة حسابي أو أثناء التسجيل. يتم حفظها مشفرة على الخادم ولا يراها أي مستخدم أو أدمن آخر.',
+              'Define a custom activation password that allows recipients to unlock delegated Admin privileges from their Account modal or registration. Stored securely hashed on the server.'
+            )}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="space-y-1.5">
+              <label className="text-xs text-[#C8C2B8] block">
+                {activationConfigured
+                  ? tr(
+                      'كلمة سر تفعيل جديدة (اتركها فارغة لتعديل الرتبة فقط)',
+                      'New Activation Password (leave blank to keep current)'
+                    )
+                  : tr('كلمة سر تفعيل الأدمن (4+ أحرف)', 'Admin Activation Password (4+ chars)')}
+              </label>
+              <PasswordInput
+                value={activationPassInput}
+                onChange={(e) => setActivationPassInput(e.target.value)}
+                placeholder={tr('اكتب كلمة سر التفعيل...', 'Enter activation password...')}
+                startIcon={<Lock className="w-4 h-4 text-[#D4AF37]" />}
+                className="w-full py-2.5 rounded-xl bg-[#151519] border border-white/15 text-xs sm:text-sm text-[#F5F0E6] font-mono focus:outline-none focus:border-[#D4AF37]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-[#C8C2B8] block">
+                {tr(
+                  'الرتبة الإدارية الممنوحة عند التفعيل بهذه الكلمة',
+                  'Default Rank Assigned Upon Activation'
+                )}
+              </label>
+              <select
+                value={activationDefaultRankId}
+                onChange={(e) => setActivationDefaultRankId(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-[#151519] border border-white/15 text-xs sm:text-sm text-[#F5F0E6] focus:outline-none focus:border-[#D4AF37]"
+              >
+                {ranks
+                  .filter((r) => !r.isSuperAdminRank && r.id !== 'rank-super-admin')
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.displayOrder}. {r.nameAr}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          {activationUpdatedAt && (
+            <div className="text-[11px] font-mono text-[#A8A29E] tabular-nums">
+              {tr('آخر تحديث:', 'Last updated:')}{' '}
+              {new Date(activationUpdatedAt).toLocaleString()}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+            {activationConfigured && (
+              <button
+                type="button"
+                disabled={savingActivationPass}
+                onClick={handleClearActivationPassword}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-950/40 border border-red-500/40 text-xs font-semibold text-red-200 hover:bg-red-700 hover:text-white cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{tr('مسح وإيقاف التفعيل', 'Clear Password')}</span>
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={savingActivationPass}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#D4AF37] text-[#09090B] text-xs font-bold hover:bg-[#E5C158] disabled:opacity-50 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>
+                {savingActivationPass
+                  ? tr('جاري الحفظ...', 'Saving...')
+                  : tr('حفظ باسورد تفعيل الأدمن', 'Save Activation Password')}
+              </span>
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Edit Support Team Member Modal */}
+      {editingSupportMember && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+        >
+          <form
+            onSubmit={handleSaveSupportEdit}
+            className="w-full max-w-lg rounded-2xl bg-[#121216] border border-[#D4AF37]/40 p-5 sm:p-6 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Headset className="w-4 h-4 text-[#D4AF37]" />
+                <h3 className="text-base font-bold text-[#F5F0E6]">
+                  {tr('تعديل بيانات عضو الدعم الفني', 'Edit Support Team Member')}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingSupportMember(null)}
+                className="text-[#A8A29E] hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-[#C8C2B8] block">
+                  {tr('المقعد في فريق الدعم (1 إلى 7)', 'Support Seat (1..7)')}
+                </label>
+                <select
+                  value={editSupportSlot}
+                  onChange={(e) => setEditSupportSlot(Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6]"
+                >
+                  {supportSlots.map((slot) => {
+                    const occupant = supportTeam.find(
+                      (m) => m.slotNumber === slot && m.id !== editingSupportMember.id
+                    );
+                    return (
+                      <option key={slot} value={slot}>
+                        {tr(`المقعد #${slot}`, `Slot #${slot}`)}
+                        {occupant ? ` — (${tr('تبديل مع', 'Swap with')} ${occupant.displayName})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-[#C8C2B8] block">
+                  {tr('الاسم الظاهر', 'Display Name')}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editSupportDisplayName}
+                  onChange={(e) => setEditSupportDisplayName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-[#C8C2B8] block">
+                  {tr('التخصص أو نطاق المساعدة', 'Specialty / Scope')}
+                </label>
+                <input
+                  type="text"
+                  value={editSupportSpecialty}
+                  onChange={(e) => setEditSupportSpecialty(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-[#C8C2B8] block">
+                  {tr(
+                    'رقم WhatsApp (اتركه فارغاً للإبقاء على الرقم الحالي)',
+                    'WhatsApp Number (leave empty to keep current)'
+                  )}
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={editSupportWhatsapp}
+                  onChange={(e) => setEditSupportWhatsapp(e.target.value)}
+                  placeholder="01012345678"
+                  className="w-full px-3 py-2 rounded-xl bg-[#151519] border border-white/15 text-xs text-[#F5F0E6] font-mono"
+                />
+              </div>
+
+              <label className="inline-flex items-center gap-2 text-xs text-[#C8C2B8] cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={editSupportActive}
+                  onChange={(e) => setEditSupportActive(e.target.checked)}
+                  className="accent-[#D4AF37]"
+                />
+                <span>{tr('نشط ومتاح للطلاب', 'Active & visible to students')}</span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingSupportMember(null)}
+                className="px-4 py-2 rounded-xl bg-[#18181D] border border-white/15 text-xs text-[#C8C2B8] cursor-pointer"
+              >
+                {tr('إلغاء', 'Cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={updatingSupportId === editingSupportMember.id}
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#D4AF37] text-[#09090B] text-xs font-bold hover:bg-[#E5C158] cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>{tr('حفظ التغييرات', 'Save Changes')}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Edit / Transfer Official Modal */}
       {editingOfficial && (
         <div
@@ -1029,7 +1883,10 @@ export function AdminRanksPanel({
 
               <div className="space-y-1">
                 <label className="text-xs text-[#C8C2B8] block">
-                  {tr('رقم WhatsApp (اتركه فارغاً للإبقاء على الرقم الحالي)', 'WhatsApp Number (leave empty to keep current)')}
+                  {tr(
+                    'رقم WhatsApp (اتركه فارغاً للإبقاء على الرقم الحالي)',
+                    'WhatsApp Number (leave empty to keep current)'
+                  )}
                 </label>
                 <input
                   type="text"

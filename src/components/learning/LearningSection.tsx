@@ -334,8 +334,8 @@ export function LearningSection() {
             >
               <h3 className="font-display text-lg font-bold text-[#E5C158]">
                 {tr(
-                  'رفع محاضرة فيديو لمشغل MVIA الاحترافي',
-                  'Upload Video Lecture to MVIA Pro Player'
+                  'رفع محاضرة فيديو لمشغل MAVIA الاحترافي',
+                  'Upload Video Lecture to MAVIA Pro Player'
                 )}
               </h3>
               {lectureError && (

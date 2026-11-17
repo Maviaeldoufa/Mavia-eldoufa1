@@ -251,7 +251,7 @@ export function GeoEngineeringBackground({
               const survey = await geo.project(CRS);
             </text>
             <text x="20" y="24" fontSize="14" fillOpacity="0.7">
-              &lt;MVIA mode=&quot;engineering&quot; /&gt;
+              &lt;MAVIA mode=&quot;engineering&quot; /&gt;
             </text>
           </g>
 
@@ -271,7 +271,7 @@ export function GeoEngineeringBackground({
           {/* Terminal Tag Bottom-Right */}
           <g transform="translate(1250, 760)" opacity="0.42">
             <text x="0" y="0" fontSize="24">
-              &lt;/MVIA&gt;
+              &lt;/MAVIA&gt;
             </text>
           </g>
         </g>

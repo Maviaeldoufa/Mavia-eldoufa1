@@ -3,11 +3,13 @@ import crypto from 'crypto';
 import { Router } from 'express';
 import fs from 'fs';
 import multer from 'multer';
+import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
 import { requireAuth, requirePermission } from '../auth.ts';
 import type { AuthenticatedRequest } from '../auth.ts';
-import { db, getUserRankBadge, UPLOADS_DIR } from '../db.ts';
+import { db, getUserRankBadge } from '../db.ts';
+import { saveUploadedBuffer, sanitizeUploadExtension } from '../storage.ts';
 import type { AcademicYear, ChatMessage, GpaCourseEntry } from '../types.ts';
 import { broadcastChatMessage } from '../wsHub.ts';
 
@@ -29,22 +31,8 @@ const ALLOWED_AUDIO_EXTS = new Set([
   '.amr',
 ]);
 
-const audioStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    }
-    cb(null, UPLOADS_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || '').toLowerCase() || '.webm';
-    const safeName = `chat-raw-${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
-    cb(null, safeName);
-  },
-});
-
 const uploadChatAudio = multer({
-  storage: audioStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
 }).single('audio');
 
@@ -103,7 +91,7 @@ router.post('/community/groups', requireAuth, requirePermission('manage_communit
     url: normalizedUrl,
     platform: platform || 'Telegram',
     year: validYear,
-    description: description?.trim() || 'جروب تواصل للدفعة على منصة MVIA.',
+    description: description?.trim() || 'جروب تواصل للدفعة على منصة MAVIA.',
     createdAt: new Date().toISOString(),
   };
 
@@ -128,8 +116,55 @@ router.get('/community/chat/:room', requireAuth, (req, res) => {
     return;
   }
   const store = db.get();
-  const messages = store.chatMessages.filter((m) => m.room === room).slice(-100);
+  const messages = store.chatMessages
+    .filter((m) => m.room === room)
+    .slice(-100)
+    .map((m) => {
+      const sender = store.users.find((u) => u.id === m.userId);
+      return {
+        ...m,
+        rankBadge: sender ? getUserRankBadge(sender) : m.rankBadge,
+      };
+    });
   res.json({ messages });
+});
+
+router.post('/community/chat/:room', requireAuth, (req: AuthenticatedRequest, res) => {
+  const { room } = req.params;
+  if (!ALLOWED_CHAT_ROOMS.has(room)) {
+    res.status(400).json({ error: 'غرفة الشات غير صالحة.' });
+    return;
+  }
+
+  const { text } = req.body as { text?: string };
+  const cleanText = typeof text === 'string' ? text.trim().slice(0, 1000) : '';
+  if (!cleanText) {
+    res.status(400).json({ error: 'يرجى كتابة نص الرسالة.' });
+    return;
+  }
+
+  const currentUser = req.currentUser!;
+  const msg: ChatMessage = {
+    id: `msg-${crypto.randomUUID()}`,
+    room,
+    userId: currentUser.id,
+    userName: currentUser.name,
+    userRole: currentUser.role,
+    userYear: currentUser.year,
+    rankBadge: getUserRankBadge(currentUser),
+    text: cleanText,
+    createdAt: new Date().toISOString(),
+  };
+
+  const store = db.get();
+  store.chatMessages.push(msg);
+  if (store.chatMessages.length > 1000) {
+    store.chatMessages = store.chatMessages.slice(-800);
+  }
+  db.save();
+
+  broadcastChatMessage(msg);
+  res.status(201).json({ message: msg });
 });
 
 router.post(
@@ -147,137 +182,159 @@ router.post(
       next();
     });
   },
-  async (req: AuthenticatedRequest, res) => {
-    const { room } = req.params;
-    const uploaded = req.file;
-
-    if (!ALLOWED_CHAT_ROOMS.has(room)) {
-      safeUnlink(uploaded?.path);
-      res.status(400).json({ error: 'غرفة الشات غير صالحة.' });
-      return;
-    }
-
-    if (!uploaded) {
-      res.status(400).json({ error: 'يرجى إرفاق ملف صوتي أو تسجيل ريكورد أولاً.' });
-      return;
-    }
-
-    const ext = path.extname(uploaded.originalname || uploaded.filename).toLowerCase();
-    const mime = (uploaded.mimetype || '').toLowerCase();
-    const isAllowedAudio =
-      ALLOWED_AUDIO_EXTS.has(ext) ||
-      mime.startsWith('audio/') ||
-      mime === 'video/webm' ||
-      mime === 'video/mp4';
-
-    if (!isAllowedAudio) {
-      safeUnlink(uploaded.path);
-      res.status(400).json({
-        error: 'نوع الملف غير مدعوم. يُسمح فقط بالملفات الصوتية أو تسجيلات الريكورد.',
-      });
-      return;
-    }
-
-    const outFilename = `chat-audio-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.mp3`;
-    const outPath = path.join(UPLOADS_DIR, outFilename);
-
-    let finalPath = outPath;
-    let finalFilename = outFilename;
-    let finalMime = 'audio/mpeg';
+  async (req: AuthenticatedRequest, res, next) => {
+    let rawTmpPath: string | undefined;
+    let outTmpPath: string | undefined;
 
     try {
-      await execFileAsync('ffmpeg', [
-        '-y',
-        '-i',
-        uploaded.path,
-        '-vn',
-        '-c:a',
-        'libmp3lame',
-        '-b:a',
-        '128k',
-        '-ar',
-        '44100',
-        outPath,
-      ]);
-      safeUnlink(uploaded.path);
-    } catch (transcodeErr: unknown) {
-      const code = (transcodeErr as NodeJS.ErrnoException)?.code;
-      if (code === 'ENOENT' && ext === '.mp3') {
-        try {
-          fs.renameSync(uploaded.path, outPath);
-        } catch {
-          finalPath = uploaded.path;
-          finalFilename = uploaded.filename;
-        }
-      } else {
-        safeUnlink(uploaded.path);
-        safeUnlink(outPath);
+      const { room } = req.params;
+      const uploaded = req.file;
+
+      if (!ALLOWED_CHAT_ROOMS.has(room)) {
+        res.status(400).json({ error: 'غرفة الشات غير صالحة.' });
+        return;
+      }
+
+      if (!uploaded) {
+        res.status(400).json({ error: 'يرجى إرفاق ملف صوتي أو تسجيل ريكورد أولاً.' });
+        return;
+      }
+
+      const ext = sanitizeUploadExtension(uploaded.originalname, '.webm');
+      const mime = (uploaded.mimetype || '').toLowerCase();
+      const isAllowedAudio =
+        ALLOWED_AUDIO_EXTS.has(ext) ||
+        mime.startsWith('audio/') ||
+        mime === 'video/webm' ||
+        mime === 'video/mp4';
+
+      if (!isAllowedAudio) {
         res.status(400).json({
-          error: 'تعذر تحويل التسجيل أو الملف الصوتي إلى صيغة متوافقة. تأكد أن الملف يحتوي على صوت صالح.',
+          error: 'نوع الملف غير مدعوم. يُسمح فقط بالملفات الصوتية أو تسجيلات الريكورد.',
         });
         return;
       }
-    }
 
-    let durationSeconds = Math.max(
-      0,
-      Math.min(3600, Math.round(Number(req.body?.durationSeconds) || 0))
-    );
-    try {
-      const { stdout } = await execFileAsync('ffprobe', [
-        '-v',
-        'error',
-        '-show_entries',
-        'format=duration',
-        '-of',
-        'default=noprint_wrappers=1:nokey=1',
-        finalPath,
-      ]);
-      const probed = Math.round(Number(stdout.trim()));
-      if (Number.isFinite(probed) && probed > 0) {
-        durationSeconds = Math.min(3600, probed);
+      const tmpDir = os.tmpdir();
+      const stamp = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+      rawTmpPath = path.join(tmpDir, `chat-raw-${stamp}${ext}`);
+      outTmpPath = path.join(tmpDir, `chat-audio-${stamp}.mp3`);
+      fs.writeFileSync(rawTmpPath, uploaded.buffer);
+
+      let finalBuffer = uploaded.buffer;
+      let finalExt = ext;
+      let finalMime = mime || 'audio/mpeg';
+      let probePath = rawTmpPath;
+
+      try {
+        await execFileAsync('ffmpeg', [
+          '-y',
+          '-i',
+          rawTmpPath,
+          '-vn',
+          '-c:a',
+          'libmp3lame',
+          '-b:a',
+          '128k',
+          '-ar',
+          '44100',
+          outTmpPath,
+        ]);
+        finalBuffer = fs.readFileSync(outTmpPath);
+        finalExt = '.mp3';
+        finalMime = 'audio/mpeg';
+        probePath = outTmpPath;
+      } catch (transcodeErr: unknown) {
+        const code = (transcodeErr as NodeJS.ErrnoException)?.code;
+        if (code === 'ENOENT') {
+          // Serverless environment without ffmpeg binary: keep original playable audio format
+          finalBuffer = uploaded.buffer;
+          finalExt = ext;
+          finalMime =
+            ext === '.mp3'
+              ? 'audio/mpeg'
+              : mime || 'audio/webm';
+        } else {
+          res.status(400).json({
+            error: 'تعذر تحويل التسجيل أو الملف الصوتي إلى صيغة متوافقة. تأكد أن الملف يحتوي على صوت صالح.',
+          });
+          return;
+        }
       }
-    } catch {
-      // Keep client-supplied duration if ffprobe unavailable
+
+      let durationSeconds = Math.max(
+        0,
+        Math.min(3600, Math.round(Number(req.body?.durationSeconds) || 0))
+      );
+      try {
+        const { stdout } = await execFileAsync('ffprobe', [
+          '-v',
+          'error',
+          '-show_entries',
+          'format=duration',
+          '-of',
+          'default=noprint_wrappers=1:nokey=1',
+          probePath,
+        ]);
+        const probed = Math.round(Number(stdout.trim()));
+        if (Number.isFinite(probed) && probed > 0) {
+          durationSeconds = Math.min(3600, probed);
+        }
+      } catch {
+        // Keep client-supplied duration if ffprobe unavailable
+      }
+
+      const storedAudio = await saveUploadedBuffer({
+        buffer: finalBuffer,
+        originalName: `voice-note${finalExt}`,
+        mimeType: finalMime,
+        folderPrefix: 'chat-audio',
+      });
+
+      const decodedOriginal = uploaded.originalname
+        ? Buffer.from(uploaded.originalname, 'latin1').toString('utf8')
+        : `voice-note${finalExt}`;
+      const baseLabel =
+        path.basename(decodedOriginal, path.extname(decodedOriginal)).trim() ||
+        'voice-note';
+      const friendlyDownloadName = `${baseLabel.replace(/[^\w\u0600-\u06FF\s.-]/g, '_')}${finalExt}`;
+
+      const caption =
+        typeof req.body?.text === 'string' ? req.body.text.trim().slice(0, 500) : '';
+
+      const currentUser = req.currentUser!;
+      const msg: ChatMessage = {
+        id: `msg-${crypto.randomUUID()}`,
+        room,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        userYear: currentUser.year,
+        rankBadge: getUserRankBadge(currentUser),
+        text: caption,
+        audioUrl: storedAudio.fileUrl,
+        audioName: friendlyDownloadName,
+        audioMimeType: finalMime,
+        audioSize: finalBuffer.length,
+        audioDurationSeconds: durationSeconds > 0 ? durationSeconds : undefined,
+        createdAt: new Date().toISOString(),
+      };
+
+      const store = db.get();
+      store.chatMessages.push(msg);
+      if (store.chatMessages.length > 1000) {
+        store.chatMessages = store.chatMessages.slice(-800);
+      }
+      db.save();
+
+      broadcastChatMessage(msg);
+      res.status(201).json({ message: msg });
+    } catch (err) {
+      next(err);
+    } finally {
+      safeUnlink(rawTmpPath);
+      safeUnlink(outTmpPath);
     }
-
-    const decodedOriginal = uploaded.originalname
-      ? Buffer.from(uploaded.originalname, 'latin1').toString('utf8')
-      : 'voice-note.mp3';
-    const baseLabel = path.basename(decodedOriginal, path.extname(decodedOriginal)).trim() || 'voice-note';
-    const friendlyDownloadName = `${baseLabel.replace(/[^\w\u0600-\u06FF\s.-]/g, '_')}.mp3`;
-    const fileSize = fs.existsSync(finalPath) ? fs.statSync(finalPath).size : uploaded.size;
-
-    const caption =
-      typeof req.body?.text === 'string' ? req.body.text.trim().slice(0, 500) : '';
-
-    const currentUser = req.currentUser!;
-    const msg: ChatMessage = {
-      id: `msg-${crypto.randomUUID()}`,
-      room,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userRole: currentUser.role,
-      userYear: currentUser.year,
-      rankBadge: getUserRankBadge(currentUser),
-      text: caption,
-      audioUrl: `/uploads/${finalFilename}`,
-      audioName: friendlyDownloadName,
-      audioMimeType: finalMime,
-      audioSize: fileSize,
-      audioDurationSeconds: durationSeconds > 0 ? durationSeconds : undefined,
-      createdAt: new Date().toISOString(),
-    };
-
-    const store = db.get();
-    store.chatMessages.push(msg);
-    if (store.chatMessages.length > 1000) {
-      store.chatMessages = store.chatMessages.slice(-800);
-    }
-    db.save();
-
-    broadcastChatMessage(msg);
-    res.status(201).json({ message: msg });
   }
 );
 

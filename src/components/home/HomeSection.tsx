@@ -31,7 +31,7 @@ export function HomeSection({ onNavigate, onOpenCourse }: HomeSectionProps) {
           <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-between space-y-6">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2 text-xs text-[#D4AF37]">
-                <span>{tr('منصة MVIA التعليمية', 'MVIA Educational Platform')}</span>
+                <span>{tr('منصة MAVIA التعليمية', 'MAVIA Educational Platform')}</span>
                 <span aria-hidden="true">·</span>
                 <span>{user ? formatYear(user.year) : tr('جميع الدفعات', 'All Years')}</span>
                 <span aria-hidden="true">·</span>
@@ -45,10 +45,10 @@ export function HomeSection({ onNavigate, onOpenCourse }: HomeSectionProps) {
                 )}
               </h1>
 
-              <p className="text-sm sm:text-base text-[#C8C2B8] leading-relaxed max-w-2xl">
+              <p className="text-sm sm:text-[15.5px] text-[#C8C2B8] leading-relaxed max-w-2xl">
                 {tr(
-                  'منصة MVIA صُممت خصيصاً لطلاب الفرق الأربع لتجمع مواد ومجلدات كل دفعة على حدة، مع ملخصات PDF منظمة، اختبارات شاملة تمنحك نقاطاً على لوحة التصدر، وكورسات احترافية في نظم المعلومات الجغرافية (GIS) والبرمجة.',
-                  'MVIA is built specifically for students across all 4 years—organizing course folders, PDF summaries, interactive quizzes for the leaderboard, and professional GIS & Programming tracks.'
+                  'منصة MAVIA صُممت خصيصاً لطلاب الفرق الأربع لتجمع مواد ومجلدات كل دفعة على حدة، مع ملخصات PDF منظمة، اختبارات شاملة تمنحك نقاطاً على لوحة التصدر، وكورسات احترافية في نظم المعلومات الجغرافية (GIS) والبرمجة.',
+                  'MAVIA is built specifically for students across all 4 years—organizing course folders, PDF summaries, interactive quizzes for the leaderboard, and professional GIS & Programming tracks.'
                 )}
               </p>
             </div>

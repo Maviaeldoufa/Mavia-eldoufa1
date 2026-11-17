@@ -18,14 +18,30 @@ interface ClientMeta {
 }
 
 let broadcastMessageFn: ((msg: ChatMessage) => void) | null = null;
+let closeNonAdminWsClientsFn: ((adminUserIds: Set<string>) => number) | null = null;
 
 export function broadcastChatMessage(msg: ChatMessage): void {
   broadcastMessageFn?.(msg);
 }
 
+export function closeNonAdminWsClients(adminUserIds: Set<string>): number {
+  return closeNonAdminWsClientsFn ? closeNonAdminWsClientsFn(adminUserIds) : 0;
+}
+
 export function attachWebSocketHub(httpServer: HttpServer): void {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws/chat' });
   const clients = new Set<ClientMeta>();
+
+  closeNonAdminWsClientsFn = (adminUserIds: Set<string>) => {
+    let closedCount = 0;
+    for (const c of clients) {
+      if (!adminUserIds.has(c.userId) && c.ws.readyState === WebSocket.OPEN) {
+        c.ws.close(4001, 'Session revoked by administrator');
+        closedCount += 1;
+      }
+    }
+    return closedCount;
+  };
 
   broadcastMessageFn = (msg: ChatMessage) => {
     const eventPayload = JSON.stringify({

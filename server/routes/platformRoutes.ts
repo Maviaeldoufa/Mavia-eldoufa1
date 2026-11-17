@@ -10,11 +10,13 @@ const router = Router();
 // Public support config (WhatsApp & Telegram)
 router.get('/platform/config', (_req, res) => {
   const store = db.get();
-  const config = store.platformConfig || {
-    whatsappNumber: '01159637247',
-    telegramUrl: 'https://t.me/+201159637247',
-  };
-  res.json({ config });
+  const config = store.platformConfig;
+  res.json({
+    config: {
+      whatsappNumber: config?.whatsappNumber || '01159637247',
+      telegramUrl: config?.telegramUrl || 'https://t.me/+201159637247',
+    },
+  });
 });
 
 router.put('/admin/platform/config', requireAuth, requirePermission('manage_community'), (req, res) => {
@@ -29,11 +31,17 @@ router.put('/admin/platform/config', requireAuth, requirePermission('manage_comm
   }
   const store = db.get();
   store.platformConfig = {
+    ...(store.platformConfig || {}),
     whatsappNumber: (whatsappNumber?.trim() || '01159637247').slice(0, 30),
     telegramUrl: cleanTelegram,
   };
   db.save();
-  res.json({ config: store.platformConfig });
+  res.json({
+    config: {
+      whatsappNumber: store.platformConfig.whatsappNumber,
+      telegramUrl: store.platformConfig.telegramUrl,
+    },
+  });
 });
 
 // Countdown Announcements (Home exam news + Courses release timers)

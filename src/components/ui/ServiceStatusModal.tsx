@@ -2,6 +2,7 @@ import { Activity, CheckCircle2, RefreshCw, Wrench, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import type { SystemStatusData } from '../../types';
+import { resolveApiUrl } from '../../utils/api';
 import { GoldChip } from './GoldChip';
 
 interface ServiceStatusModalProps {
@@ -19,7 +20,7 @@ export function ServiceStatusModal({ open, onClose }: ServiceStatusModalProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/status');
+      const res = await fetch(resolveApiUrl('/api/status'));
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = (await res.json()) as SystemStatusData;
       setStatus(data);
@@ -53,7 +54,7 @@ export function ServiceStatusModal({ open, onClose }: ServiceStatusModalProps) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={tr('حالة الخدمة والصيانة — MVIA', 'Service Status & Maintenance')}
+      aria-label={tr('حالة الخدمة والصيانة — MAVIA', 'Service Status & Maintenance')}
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
     >
       <div className="w-full max-w-lg rounded-2xl bg-[#121216] border border-[#D4AF37]/40 p-5 sm:p-6 space-y-5 shadow-[0_24px_80px_rgba(0,0,0,0.85)]">
@@ -120,13 +121,29 @@ export function ServiceStatusModal({ open, onClose }: ServiceStatusModalProps) {
                 <span className="text-[#C8C2B8]">{tr('واجهة البرمجة (API)', 'API Server')}</span>
                 <span className="text-emerald-400 font-semibold">{tr('يعمل', 'Operational')}</span>
               </div>
-              <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10 flex items-center justify-between">
-                <span className="text-[#C8C2B8]">{tr('قاعدة البيانات', 'Database Store')}</span>
-                <span className="text-emerald-400 font-semibold">{tr('متصل', 'Healthy')}</span>
+              <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10 flex items-center justify-between gap-2">
+                <span className="text-[#C8C2B8]">
+                  {tr('قاعدة البيانات والتخزين', 'Database & Storage')}
+                </span>
+                <span
+                  className={
+                    status.services.supabaseConfigured && status.services.storageMode === 'supabase'
+                      ? 'text-emerald-400 font-semibold'
+                      : 'text-amber-300 font-semibold'
+                  }
+                >
+                  {status.services.supabaseConfigured && status.services.storageMode === 'supabase'
+                    ? tr('متصل (Supabase)', 'Connected (Supabase)')
+                    : tr('محلي (بانتظار مفاتيح Supabase)', 'Local (Supabase Keys Needed)')}
+                </span>
               </div>
               <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10 flex items-center justify-between">
-                <span className="text-[#C8C2B8]">{tr('شات البث المباشر (WS)', 'WebSocket Hub')}</span>
-                <span className="text-emerald-400 font-semibold">{tr('نشط', 'Online')}</span>
+                <span className="text-[#C8C2B8]">{tr('شات الدفعة والمزامنة', 'Batch Chat Sync')}</span>
+                <span className="text-emerald-400 font-semibold">
+                  {status.services.websocket === 'polling'
+                    ? tr('مزامنة REST', 'REST Polling')
+                    : tr('مباشر (WS)', 'Live (WS)')}
+                </span>
               </div>
               <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10 flex items-center justify-between">
                 <span className="text-[#C8C2B8]">{tr('المساعد الذكي (AI)', 'AI Assistant')}</span>
@@ -134,16 +151,6 @@ export function ServiceStatusModal({ open, onClose }: ServiceStatusModalProps) {
                   {status.services.aiConfigured
                     ? tr('مهيأ', 'Configured')
                     : tr('بحاجة لمفتاح', 'Key Needed')}
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10 flex items-center justify-between sm:col-span-2">
-                <span className="text-[#C8C2B8]">
-                  {tr('بريد التحقق التلقائي (Resend)', 'Email Delivery (Resend)')}
-                </span>
-                <span className={status.services.emailConfigured ? 'text-emerald-400 font-semibold' : 'text-[#A8A29E]'}>
-                  {status.services.emailConfigured
-                    ? tr('مفعّل', 'Configured')
-                    : tr('معطّل مؤقتاً (غير مهيأ)', 'Temporarily Disabled (Not Configured)')}
                 </span>
               </div>
             </div>

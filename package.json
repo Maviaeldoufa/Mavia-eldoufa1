@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node --test tests/audit.test.ts tests/supabase-migration.test.ts tests/email-disabled.test.ts",
+    "test": "node --test tests/audit.test.ts tests/supabase-migration.test.ts tests/email-disabled.test.ts tests/vercel-and-sessions.test.ts",
     "db:migrate:dry": "tsx scripts/migrate-json-to-supabase.ts --dry-run",
     "db:migrate": "tsx scripts/migrate-json-to-supabase.ts --execute",
     "db:verify": "tsx scripts/migrate-json-to-supabase.ts --verify-only"

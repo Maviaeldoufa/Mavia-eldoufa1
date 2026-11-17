@@ -17,6 +17,12 @@ import {
   restoreBackupSnapshot,
   validateBackupSchema,
 } from '../db.ts';
+import { IS_VERCEL, isSupabaseStorageEnabled } from '../storage.ts';
+import {
+  getLastSupabaseSyncError,
+  getSupabaseStatusDetails,
+  isSupabaseConfigured,
+} from '../supabase.ts';
 import type { DatabaseSchema } from '../types.ts';
 
 const router = Router();
@@ -28,6 +34,7 @@ router.get('/status', (_req, res) => {
     enabled: false,
     message: 'نقوم حالياً بأعمال صيانة وتحديثات لتحسين أداء المنصة. سنعود قريباً.',
   };
+  const supabaseDetails = getSupabaseStatusDetails();
   res.json({
     status: maintenance.enabled ? 'maintenance' : 'operational',
     maintenance,
@@ -36,9 +43,12 @@ router.get('/status', (_req, res) => {
     services: {
       api: 'up',
       database: 'up',
-      websocket: 'up',
+      websocket: IS_VERCEL ? 'polling' : 'up',
       aiConfigured: Boolean(process.env.GEMINI_API_KEY?.trim()),
       emailConfigured: getEmailDeliveryConfig().enabled,
+      supabaseConfigured: isSupabaseConfigured(),
+      supabaseDetails,
+      storageMode: isSupabaseStorageEnabled() ? 'supabase' : 'local',
     },
   });
 });
@@ -49,6 +59,10 @@ router.get('/health', (_req, res) => {
   res.json({
     ok: true,
     status: store.maintenance?.enabled ? 'maintenance' : 'ok',
+    runtime: IS_VERCEL ? 'vercel' : 'node',
+    supabaseConfigured: isSupabaseConfigured(),
+    supabaseDetails: getSupabaseStatusDetails(),
+    supabaseSyncError: getLastSupabaseSyncError() || undefined,
     uptimeSeconds: Math.floor(process.uptime()),
   });
 });

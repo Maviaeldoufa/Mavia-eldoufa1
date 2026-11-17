@@ -1,9 +1,9 @@
 import {
-  CheckCircle2,
   Download,
   KeyRound,
-  Mail,
+  Lock,
   ShieldAlert,
+  ShieldCheck,
   Trash2,
   UserCog,
   X,
@@ -12,8 +12,10 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import type { AcademicYear, User } from '../../types';
-import { apiRequest, getStoredToken } from '../../utils/api';
+import { apiRequest, getStoredToken, resolveApiUrl } from '../../utils/api';
 import { GoldChip } from './GoldChip';
+import { PasswordInput } from './PasswordInput';
+import { UserAdminNotesCard } from './UserAdminNotesCard';
 
 interface AccountModalProps {
   open: boolean;
@@ -26,18 +28,14 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
 
   const [name, setName] = useState('');
   const [year, setYear] = useState<AcademicYear>(1);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [profileErr, setProfileErr] = useState<string | null>(null);
 
-  const [sendingEmail, setSendingEmail] = useState(false);
-  const [verifyingCode, setVerifyingCode] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [emailNotice, setEmailNotice] = useState<string | null>(null);
-  const [emailRequiresConfig, setEmailRequiresConfig] = useState(false);
-  const [emailErr, setEmailErr] = useState<string | null>(null);
+  const [activationPassword, setActivationPassword] = useState('');
+  const [activatingAdmin, setActivatingAdmin] = useState(false);
+  const [activationMsg, setActivationMsg] = useState<string | null>(null);
+  const [activationErr, setActivationErr] = useState<string | null>(null);
 
   const [exporting, setExporting] = useState(false);
 
@@ -50,27 +48,14 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
     if (open && user) {
       setName(user.name);
       setYear(user.year);
-      setCurrentPassword('');
-      setNewPassword('');
       setProfileMsg(null);
       setProfileErr(null);
-      setEmailNotice(null);
-      setEmailErr(null);
-      setEmailRequiresConfig(false);
+      setActivationPassword('');
+      setActivationMsg(null);
+      setActivationErr(null);
       setDeletePassword('');
       setDeleteErr(null);
       setConfirmDeleteOpen(false);
-
-      if (!user.emailVerified) {
-        fetch('/api/status')
-          .then((r) => (r.ok ? r.json() : null))
-          .then((data) => {
-            if (data?.services && data.services.emailConfigured === false) {
-              setEmailRequiresConfig(true);
-            }
-          })
-          .catch(() => {});
-      }
     }
   }, [open, user?.id]);
 
@@ -96,14 +81,9 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
         body: JSON.stringify({
           name: name.trim(),
           year,
-          ...(newPassword
-            ? { currentPassword, newPassword }
-            : {}),
         }),
       });
       setUserDirect(res.user);
-      setCurrentPassword('');
-      setNewPassword('');
       setProfileMsg(tr('تم تحديث بيانات حسابك بنجاح.', 'Profile updated successfully.'));
     } catch (err) {
       setProfileErr(
@@ -116,53 +96,34 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
     }
   };
 
-  const handleSendVerification = async () => {
-    setSendingEmail(true);
-    setEmailNotice(null);
-    setEmailErr(null);
-    setEmailRequiresConfig(false);
-    try {
-      const res = await apiRequest<{
-        sent: boolean;
-        alreadyVerified?: boolean;
-        requiresConfig?: boolean;
-        message: string;
-      }>('/api/auth/send-verification', { method: 'POST' });
-      setEmailNotice(res.message);
-      setEmailRequiresConfig(Boolean(res.requiresConfig));
-    } catch (err) {
-      setEmailErr(
-        err instanceof Error
-          ? err.message
-          : tr('تعذر إرسال كود التأكيد.', 'Failed to send verification code.')
-      );
-    } finally {
-      setSendingEmail(false);
-    }
-  };
-
-  const handleVerifyEmail = async (e: React.FormEvent) => {
+  const handleActivateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpCode.trim()) return;
-    setVerifyingCode(true);
-    setEmailNotice(null);
-    setEmailErr(null);
+    if (!activationPassword.trim()) return;
+    setActivatingAdmin(true);
+    setActivationMsg(null);
+    setActivationErr(null);
     try {
-      const res = await apiRequest<{ user: User }>('/api/auth/verify-email', {
-        method: 'POST',
-        body: JSON.stringify({ code: otpCode.trim() }),
-      });
+      const res = await apiRequest<{ user: User; message?: string }>(
+        '/api/account/activate-admin',
+        {
+          method: 'POST',
+          body: JSON.stringify({ password: activationPassword.trim() }),
+        }
+      );
       setUserDirect(res.user);
-      setOtpCode('');
-      setEmailNotice(tr('تم تأكيد بريدك الإلكتروني بنجاح!', 'Email verified!'));
+      setActivationPassword('');
+      setActivationMsg(
+        res.message ||
+          tr('تم تفعيل صلاحية الأدمن لحسابك بنجاح!', 'Admin privilege activated for your account!')
+      );
     } catch (err) {
-      setEmailErr(
+      setActivationErr(
         err instanceof Error
           ? err.message
-          : tr('كود التحقق غير صحيح.', 'Invalid verification code.')
+          : tr('تعذر تفعيل صلاحية الأدمن.', 'Failed to activate admin privilege.')
       );
     } finally {
-      setVerifyingCode(false);
+      setActivatingAdmin(false);
     }
   };
 
@@ -170,7 +131,7 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
     setExporting(true);
     try {
       const token = getStoredToken();
-      const res = await fetch('/api/account/export', {
+      const res = await fetch(resolveApiUrl('/api/account/export'), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error('Export failed');
@@ -245,11 +206,11 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
           </button>
         </div>
 
-        {/* 1. Profile & Password Form */}
+        {/* 1. Profile Form (Name & Year only; Email & Password Locked after Registration) */}
         <form onSubmit={handleSaveProfile} className="space-y-4">
           <h3 className="font-display text-sm font-bold text-[#F5F0E6] flex items-center gap-2">
-            <KeyRound className="w-4 h-4 text-[#D4AF37]" />
-            <span>{tr('تعديل البيانات الشخصية وكلمة المرور', 'Edit Profile & Password')}</span>
+            <UserCog className="w-4 h-4 text-[#D4AF37]" />
+            <span>{tr('تعديل البيانات الشخصية', 'Edit Personal Details')}</span>
           </h3>
 
           {profileErr && (
@@ -294,113 +255,96 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="block text-xs text-[#C8C2B8]">
-                {tr('كلمة المرور الحالية (لتغييرها فقط)', 'Current Password (optional)')}
-              </label>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#09090B] border border-white/10 text-sm text-[#F5F0E6] focus:outline-none focus:border-[#D4AF37]"
-              />
+          <div className="p-3.5 rounded-xl bg-[#0D0D10] border border-white/10 space-y-2">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 font-semibold text-[#C8C2B8]">
+                <Lock className="w-3.5 h-3.5 text-[#D4AF37]" />
+                <span>{tr('البريد الإلكتروني وكلمة المرور', 'Email & Password')}</span>
+              </span>
+              <span className="font-mono text-[11px] text-[#E5C158] truncate max-w-[230px]">
+                {user.email || '—'}
+              </span>
             </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs text-[#C8C2B8]">
-                {tr('كلمة المرور الجديدة (6 أحرف على الأقل)', 'New Password (min 6 chars)')}
-              </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#09090B] border border-white/10 text-sm text-[#F5F0E6] focus:outline-none focus:border-[#D4AF37]"
-              />
-            </div>
+            <p className="text-[11px] text-[#A8A29E] leading-relaxed">
+              {user.isSuperAdmin
+                ? tr(
+                    'بصفتك المدير العام للمنصة، يمكنك تعديل البريد الإلكتروني وكلمة المرور لأي حساب من خلال ملف المستخدم في لوحة إدارة المستخدمين.',
+                    'As Platform Super Admin, you can update email & password for any user from their profile inside the Admin User Directory.'
+                  )
+                : tr(
+                    'البريد الإلكتروني وكلمة المرور مقفلان بعد التسجيل ولا يمكن تعديلهما ذاتياً. عند الحاجة يرجى التواصل مع مدير المنصة العام.',
+                    'Email and password are locked after registration and cannot be self-edited. Contact the Platform Super Admin if a change is required.'
+                  )}
+            </p>
           </div>
 
           <div className="flex justify-end">
             <GoldChip type="submit" active={true} disabled={savingProfile} className="text-xs px-4 py-2">
-              {savingProfile ? tr('جاري الحفظ...', 'Saving...') : tr('حفظ التعديلات', 'Save Changes')}
+              {savingProfile ? tr('جاري الحفظ...', 'Saving...') : tr('حفظ الاسم والفرقة', 'Save Name & Year')}
             </GoldChip>
           </div>
         </form>
 
-        {/* 2. Email Verification */}
-        <div className="p-4 rounded-xl bg-[#0D0D10] border border-white/10 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-[#D4AF37]" />
-              <span className="font-display text-sm font-bold text-[#F5F0E6]">
-                {tr('توثيق البريد الإلكتروني', 'Email Verification')}
-              </span>
-            </div>
-            {user.emailVerified ? (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{tr('البريد موثق', 'Verified')}</span>
-              </span>
-            ) : (
-              <span className="text-xs text-amber-300">
-                {tr('غير موثق بعد', 'Not Verified Yet')}
-              </span>
-            )}
-          </div>
-
-          {!user.emailVerified && emailRequiresConfig ? (
-            <div className="p-3 rounded-lg bg-[#151519] border border-white/10 text-xs text-[#C8C2B8]">
-              {emailNotice ||
-                tr(
-                  'إرسال رسائل التحقق بالبريد الإلكتروني معطّل مؤقتاً لعدم اكتمال إعداد مزود البريد (RESEND_API_KEY / EMAIL_FROM)، وتعمل جميع مزايا المنصة بشكل طبيعي.',
-                  'Email verification delivery is temporarily disabled while sender email configuration is incomplete. All other platform features remain active.'
-                )}
-            </div>
-          ) : !user.emailVerified ? (
-            <>
-              <div className="flex flex-wrap items-center gap-2">
-                <GoldChip
-                  onClick={handleSendVerification}
-                  disabled={sendingEmail}
-                  className="text-xs px-3 py-1.5"
-                >
-                  {sendingEmail
-                    ? tr('جاري الإرسال...', 'Sending...')
-                    : tr('إرسال كود التأكيد لبريدي', 'Send Verification Code')}
-                </GoldChip>
+        {/* 1.5 Activate Admin Privilege via Admin-Defined Custom Password */}
+        {!user.isSuperAdmin && (
+          <form
+            onSubmit={handleActivateAdmin}
+            className="p-4 rounded-xl bg-[#0D0D10] border border-[#D4AF37]/30 space-y-3"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+                <span className="font-display text-sm font-bold text-[#E5C158]">
+                  {tr('تفعيل صلاحية الأدمن بكلمة السر', 'Activate Admin Privilege')}
+                </span>
               </div>
-
-              {emailNotice && (
-                <div className="p-3 rounded-lg text-xs border bg-emerald-950/30 border-emerald-500/35 text-emerald-200">
-                  {emailNotice}
-                </div>
+              {user.role === 'admin' && (
+                <span className="text-[11px] font-semibold text-emerald-300">
+                  {tr('حسابك يملك صلاحية أدمن حالياً', 'Admin Role Active')}
+                </span>
               )}
-
-              {emailErr && (
-                <div className="p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-xs text-red-200">
-                  {emailErr}
-                </div>
+            </div>
+            <p className="text-xs text-[#A8A29E]">
+              {tr(
+                'إذا حصلت على كلمة سر تفعيل الأدمن من مدير المنصة العام، اكتبها هنا لتفعيل صلاحية الأدمن على حسابك.',
+                'If the Super Admin provided you with the admin activation password, enter it here to unlock admin access.'
               )}
+            </p>
+            {activationErr && (
+              <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-500/40 text-xs text-red-200">
+                {activationErr}
+              </div>
+            )}
+            {activationMsg && (
+              <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-200">
+                {activationMsg}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <PasswordInput
+                value={activationPassword}
+                onChange={(e) => setActivationPassword(e.target.value)}
+                placeholder={tr('أدخل كلمة سر تفعيل الأدمن', 'Enter admin activation password')}
+                startIcon={<KeyRound className="w-4 h-4 text-[#D4AF37]" />}
+                wrapperClassName="flex-1 min-w-[210px]"
+                className="w-full py-2 rounded-lg bg-[#09090B] border border-[#D4AF37]/35 text-xs text-[#F5F0E6] font-mono focus:outline-none focus:border-[#E5C158]"
+              />
+              <GoldChip
+                type="submit"
+                active={true}
+                disabled={activatingAdmin || !activationPassword.trim()}
+                className="text-xs px-4 py-2 shrink-0"
+              >
+                {activatingAdmin
+                  ? tr('جاري التفعيل...', 'Activating...')
+                  : tr('تفعيل الصلاحية', 'Activate Admin')}
+              </GoldChip>
+            </div>
+          </form>
+        )}
 
-              <form onSubmit={handleVerifyEmail} className="flex flex-wrap items-center gap-2">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder={tr('أدخل الكود المكون من 6 أرقام', 'Enter 6-digit code')}
-                  className="px-3 py-2 rounded-lg bg-[#09090B] border border-white/10 text-xs text-[#F5F0E6] font-mono focus:outline-none focus:border-[#D4AF37]"
-                />
-                <GoldChip type="submit" active={true} disabled={verifyingCode} className="text-xs px-3 py-1.5">
-                  {verifyingCode ? tr('جاري التحقق...', 'Verifying...') : tr('تأكيد الكود', 'Verify')}
-                </GoldChip>
-              </form>
-            </>
-          ) : null}
-        </div>
+        {/* 2. Admin Profile Notes (Reaction-Only) */}
+        <UserAdminNotesCard />
 
         {/* 3. Personal Data Export & Account Deletion */}
         <div className="p-4 rounded-xl bg-[#0D0D10] border border-white/10 space-y-4">
@@ -462,13 +406,13 @@ export function AccountModal({ open, onClose }: AccountModalProps) {
                   <p className="text-xs text-red-300">{deleteErr}</p>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="password"
+                  <PasswordInput
                     required
                     value={deletePassword}
                     onChange={(e) => setDeletePassword(e.target.value)}
                     placeholder={tr('كلمة المرور', 'Password')}
-                    className="flex-1 min-w-[180px] px-3 py-2 rounded-lg bg-[#09090B] border border-red-500/40 text-xs text-[#F5F0E6] focus:outline-none focus:border-red-400"
+                    wrapperClassName="flex-1 min-w-[180px]"
+                    className="w-full px-3 py-2 rounded-lg bg-[#09090B] border border-red-500/40 text-xs text-[#F5F0E6] focus:outline-none focus:border-red-400"
                   />
                   <button
                     type="submit"

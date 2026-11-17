@@ -1,19 +1,16 @@
 import {
-  Activity,
   AlertTriangle,
-  Award,
   Ban,
-  BookOpen,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
   Download,
   Eye,
-  FileText,
   GraduationCap,
   History,
   Lock,
+  LogOut,
   Mail,
   Phone,
   RefreshCw,
@@ -31,16 +28,21 @@ import { useLanguage } from '../../context/LanguageContext';
 import type {
   AcademicYear,
   AdminAuditLog,
-  AdminUserProfileResponse,
   AdminUsersResponse,
   AdminUsersStats,
   User,
   UserRole,
 } from '../../types';
-import { apiRequest, getStoredToken } from '../../utils/api';
-import { hasAdminPermission, isSuperAdminUser } from '../../utils/permissions';
+import { apiRequest, getStoredToken, resolveApiUrl } from '../../utils/api';
+import {
+  hasAdminPermission,
+  hasAnyAdminPermission,
+  isSuperAdminUser,
+} from '../../utils/permissions';
 import { GoldChip } from '../ui/GoldChip';
+import { PasswordInput } from '../ui/PasswordInput';
 import { RankBadge } from '../ui/RankBadge';
+import { AdminUserProfileModal } from './AdminUserProfileModal';
 
 interface AdminUsersPanelProps {
   onUsersChanged: () => void;
@@ -49,7 +51,8 @@ interface AdminUsersPanelProps {
 type ConfirmAction =
   | { type: 'suspend'; user: User; reason: string }
   | { type: 'activate'; user: User }
-  | { type: 'delete'; user: User };
+  | { type: 'delete'; user: User }
+  | { type: 'revoke_non_admins' };
 
 export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
   const { user: currentUser } = useAuth();
@@ -107,11 +110,8 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
   // Confirmation modal
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
-  // Student Profile & Academic Stats modal
-  const [profileModalData, setProfileModalData] =
-    useState<AdminUserProfileResponse | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+  // Student Profile, Academic Stats & Admin Notes modal
+  const [profileTargetId, setProfileTargetId] = useState<string | null>(null);
 
   // Audit Log drawer/panel
   const [showAuditLogs, setShowAuditLogs] = useState(false);
@@ -146,11 +146,15 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
   );
 
   const canManageStudents = hasAdminPermission(currentUser, 'manage_students');
+  const canAccessDirectory = hasAnyAdminPermission(currentUser, [
+    'manage_students',
+    'manage_user_notes',
+  ]);
   const canViewSensitive = hasAdminPermission(currentUser, 'view_sensitive_data');
   const canCreateAdmin = isSuperAdminUser(currentUser);
 
   const loadUsers = useCallback(async () => {
-    if (!canManageStudents) return;
+    if (!canAccessDirectory) return;
     setLoading(true);
     try {
       const qs = buildFilterQuery({ page, limit });
@@ -167,7 +171,7 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [canManageStudents, buildFilterQuery, page, limit, tr]);
+  }, [canAccessDirectory, buildFilterQuery, page, limit, tr]);
 
   const loadAuditLogs = useCallback(async () => {
     if (!canViewSensitive) return;
@@ -183,10 +187,10 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
   }, [canViewSensitive]);
 
   useEffect(() => {
-    if (canManageStudents) {
+    if (canAccessDirectory) {
       loadUsers();
     }
-  }, [canManageStudents, loadUsers]);
+  }, [canAccessDirectory, loadUsers]);
 
   useEffect(() => {
     if (showAuditLogs && canViewSensitive) {
@@ -194,20 +198,19 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
     }
   }, [showAuditLogs, canViewSensitive, loadAuditLogs]);
 
-  // Escape handler for modals
+  // Escape handler for confirmation modal
   useEffect(() => {
-    if (!confirmAction && !profileOpen) return;
+    if (!confirmAction) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (confirmAction) setConfirmAction(null);
-        else if (profileOpen) setProfileOpen(false);
+        setConfirmAction(null);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [confirmAction, profileOpen]);
+  }, [confirmAction]);
 
-  if (!canManageStudents) {
+  if (!canAccessDirectory) {
     return null;
   }
 
@@ -278,34 +281,51 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
     }
   };
 
-  const handleViewProfile = async (target: User) => {
-    setProfileOpen(true);
-    setProfileLoading(true);
-    setProfileModalData(null);
+  const handleViewProfile = (target: User) => {
     setErrorMsg(null);
-    try {
-      const data = await apiRequest<AdminUserProfileResponse>(
-        `/api/admin/users/${target.id}/profile`
-      );
-      setProfileModalData(data);
-      if (showAuditLogs) loadAuditLogs();
-    } catch (err) {
-      setProfileOpen(false);
-      setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : tr('تعذر تحميل ملف الطالب.', 'Failed to load profile.')
-      );
-    } finally {
-      setProfileLoading(false);
-    }
+    setProfileTargetId(target.id);
   };
 
   const executeConfirmedAction = async () => {
     if (!confirmAction) return;
-    const { type, user: target } = confirmAction;
     setErrorMsg(null);
     setStatusMsg(null);
+
+    if (confirmAction.type === 'revoke_non_admins') {
+      setBusyId('__revoke_non_admins__');
+      try {
+        const res = await apiRequest<{
+          ok: boolean;
+          revokedSessionsCount: number;
+          affectedUsersCount: number;
+          keptAdminSessionsCount: number;
+        }>('/api/admin/sessions/revoke-non-admins', {
+          method: 'POST',
+        });
+        setStatusMsg(
+          tr(
+            `تم إنهاء ${res.revokedSessionsCount} جلسة لعدد ${res.affectedUsersCount} حساب من الطلاب والمعلمين بنجاح (مع الإبقاء على ${res.keptAdminSessionsCount} جلسة للأدمن دون تغيير).`,
+            `Ended ${res.revokedSessionsCount} session(s) across ${res.affectedUsersCount} non-admin account(s); preserved ${res.keptAdminSessionsCount} admin session(s).`
+          )
+        );
+        setConfirmAction(null);
+        await loadUsers();
+        if (showAuditLogs) loadAuditLogs();
+        onUsersChanged();
+      } catch (err) {
+        setErrorMsg(
+          err instanceof Error
+            ? err.message
+            : tr('تعذر إنهاء جلسات المسجلين.', 'Failed to revoke non-admin sessions.')
+        );
+        setConfirmAction(null);
+      } finally {
+        setBusyId(null);
+      }
+      return;
+    }
+
+    const { type, user: target } = confirmAction;
     setBusyId(target.id);
     try {
       if (type === 'activate') {
@@ -367,7 +387,7 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
     try {
       const qs = buildFilterQuery({ includeContact: includeContactCsv });
       const token = getStoredToken();
-      const res = await fetch(`/api/admin/users/export.csv?${qs}`, {
+      const res = await fetch(resolveApiUrl(`/api/admin/users/export.csv?${qs}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
@@ -410,6 +430,10 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
     switch (action) {
       case 'user.create':
         return tr('إنشاء حساب', 'User Created');
+      case 'user.credentials_update':
+        return tr('تعديل بريد / كلمة مرور', 'Credentials Updated');
+      case 'user.admin_activated':
+        return tr('تفعيل صلاحية أدمن', 'Admin Role Activated');
       case 'user.suspend':
         return tr('تعليق حساب', 'User Suspended');
       case 'user.activate':
@@ -418,8 +442,32 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
         return tr('حذف حساب', 'User Deleted');
       case 'user.profile_view':
         return tr('استعراض ملف', 'Profile Viewed');
+      case 'user.note_create':
+        return tr('كتابة ملاحظة بالملف', 'Profile Note Added');
+      case 'user.note_delete':
+        return tr('حذف ملاحظة بالملف', 'Profile Note Deleted');
       case 'users.csv_export':
         return tr('تصدير CSV', 'CSV Export');
+      case 'rank.update':
+        return tr('تعديل رتبة', 'Rank Updated');
+      case 'admin.activation_password_update':
+        return tr('تحديث كلمة سر تفعيل الأدمن', 'Activation Password Updated');
+      case 'official.assign':
+        return tr('تعيين مسؤول', 'Official Assigned');
+      case 'official.update':
+        return tr('تحديث مسؤول', 'Official Updated');
+      case 'official.remove':
+        return tr('إزالة مسؤول', 'Official Removed');
+      case 'support_team.assign':
+        return tr('تعيين عضو دعم فني', 'Support Team Assigned');
+      case 'support_team.update':
+        return tr('تحديث عضو دعم فني', 'Support Team Updated');
+      case 'support_team.remove':
+        return tr('إزالة عضو دعم فني', 'Support Team Removed');
+      case 'sessions.revoke_non_admins':
+        return tr('إنهاء جلسات المسجلين (عدا الأدمن)', 'Revoked Non-Admin Sessions');
+      default:
+        return action;
     }
   };
 
@@ -458,31 +506,47 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowAuditLogs((p) => !p)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-              showAuditLogs
-                ? 'bg-[#D4AF37]/15 border-[#D4AF37] text-[#E5C158]'
-                : 'bg-[#151519] border-white/10 text-[#C8C2B8] hover:border-[#D4AF37]/50 hover:text-[#E5C158]'
-            }`}
-          >
-            <History className="w-3.5 h-3.5" />
-            <span>{tr('سجل الإجراءات الحساسة', 'Audit Log')}</span>
-          </button>
+          {canViewSensitive && (
+            <button
+              type="button"
+              onClick={() => setShowAuditLogs((p) => !p)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                showAuditLogs
+                  ? 'bg-[#D4AF37]/15 border-[#D4AF37] text-[#E5C158]'
+                  : 'bg-[#151519] border-white/10 text-[#C8C2B8] hover:border-[#D4AF37]/50 hover:text-[#E5C158]'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>{tr('سجل الإجراءات الحساسة', 'Audit Log')}</span>
+            </button>
+          )}
 
-          <GoldChip
-            active={showAddForm}
-            onClick={() => setShowAddForm((p) => !p)}
-            className="text-xs px-3.5 py-2"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>
-              {showAddForm
-                ? tr('إغلاق النموذج', 'Close Form')
-                : tr('إضافة حساب جديد', 'Add User')}
-            </span>
-          </GoldChip>
+          {canManageStudents && (
+            <>
+              <button
+                type="button"
+                disabled={busyId === '__revoke_non_admins__'}
+                onClick={() => setConfirmAction({ type: 'revoke_non_admins' })}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border bg-amber-950/40 border-amber-500/40 text-amber-200 hover:bg-amber-600 hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>{tr('إنهاء جلسات المسجلين (عدا الأدمن)', 'End Non-Admin Sessions')}</span>
+              </button>
+
+              <GoldChip
+                active={showAddForm}
+                onClick={() => setShowAddForm((p) => !p)}
+                className="text-xs px-3.5 py-2"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>
+                  {showAddForm
+                    ? tr('إغلاق النموذج', 'Close Form')
+                    : tr('إضافة حساب جديد', 'Add User')}
+                </span>
+              </GoldChip>
+            </>
+          )}
         </div>
       </div>
 
@@ -604,14 +668,13 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
               placeholder={tr('رقم الهاتف', 'Phone Number')}
               className="px-3 py-2 rounded-lg bg-[#151519] border border-white/10 text-xs text-[#F5F0E6] font-mono tabular-nums focus:outline-none focus:border-[#D4AF37]"
             />
-            <input
-              type="password"
+            <PasswordInput
               required
               minLength={4}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={tr('كلمة المرور (4+)', 'Password (4+ chars)')}
-              className="px-3 py-2 rounded-lg bg-[#151519] border border-white/10 text-xs text-[#F5F0E6] focus:outline-none focus:border-[#D4AF37]"
+              className="w-full px-3 py-2 rounded-lg bg-[#151519] border border-white/10 text-xs text-[#F5F0E6] focus:outline-none focus:border-[#D4AF37]"
             />
             <select
               value={year}
@@ -633,7 +696,7 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
               >
                 <option value="student">{tr('طالب', 'Student')}</option>
                 <option value="teacher">{tr('معلم / مدرس', 'Teacher')}</option>
-                <option value="admin">{tr('أدمن', 'Admin')}</option>
+                {canCreateAdmin && <option value="admin">{tr('أدمن', 'Admin')}</option>}
               </select>
               <GoldChip
                 type="submit"
@@ -790,19 +853,21 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
               <span>{tr('تحديث', 'Refresh')}</span>
             </button>
 
-            <GoldChip
-              active={true}
-              disabled={exportingCsv}
-              onClick={handleExportCsv}
-              className="text-xs px-3.5 py-1.5"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>
-                {exportingCsv
-                  ? tr('جاري التصدير...', 'Exporting...')
-                  : tr('تصدير CSV', 'Export CSV')}
-              </span>
-            </GoldChip>
+            {canViewSensitive && (
+              <GoldChip
+                active={true}
+                disabled={exportingCsv}
+                onClick={handleExportCsv}
+                className="text-xs px-3.5 py-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>
+                  {exportingCsv
+                    ? tr('جاري التصدير...', 'Exporting...')
+                    : tr('تصدير CSV', 'Export CSV')}
+                </span>
+              </GoldChip>
+            )}
           </div>
         </div>
       </div>
@@ -954,7 +1019,11 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
                   <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
                     {/* Name + Role + Academic Year */}
                     <td className="py-3 px-3 align-top">
-                      <div className="font-medium text-[#F5F0E6] flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleViewProfile(u)}
+                        className="font-medium text-[#F5F0E6] hover:text-[#E5C158] flex flex-wrap items-center gap-1.5 text-start cursor-pointer transition-colors"
+                      >
                         {u.rankBadge ? (
                           <RankBadge rankBadge={u.rankBadge} size="xs" />
                         ) : u.role === 'admin' ? (
@@ -963,8 +1032,10 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
                             aria-hidden="true"
                           />
                         ) : null}
-                        <span>{u.name}</span>
-                      </div>
+                        <span className="underline decoration-[#D4AF37]/30 underline-offset-4">
+                          {u.name}
+                        </span>
+                      </button>
                       <div className="text-[11px] text-[#A8A29E] mt-0.5 flex flex-wrap items-center gap-1.5">
                         <span
                           className={`font-semibold ${
@@ -1051,10 +1122,10 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#151519] border border-white/15 text-[#F5F0E6] hover:border-[#D4AF37] hover:text-[#E5C158] transition-colors cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>{tr('الملف', 'Profile')}</span>
+                          <span>{tr('الملف والملاحظات', 'Profile & Notes')}</span>
                         </button>
 
-                        {isImmune ? (
+                        {!canManageStudents ? null : isImmune ? (
                           <span className="inline-flex items-center gap-1 px-2 py-1.5 text-xs text-[#D4AF37]">
                             <Lock className="w-3.5 h-3.5" />
                             <span>{tr('محمي', 'Protected')}</span>
@@ -1168,7 +1239,7 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
         </div>
       </div>
 
-      {/* Confirmation Modal (Suspend / Activate / Delete) */}
+      {/* Confirmation Modal (Suspend / Activate / Delete / Revoke Non-Admins) */}
       {confirmAction && (
         <div
           role="dialog"
@@ -1183,7 +1254,7 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
                   className={`w-5 h-5 shrink-0 ${
                     confirmAction.type === 'delete'
                       ? 'text-red-400'
-                      : confirmAction.type === 'suspend'
+                      : confirmAction.type === 'suspend' || confirmAction.type === 'revoke_non_admins'
                       ? 'text-amber-400'
                       : 'text-emerald-400'
                   }`}
@@ -1192,7 +1263,9 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
                   id="admin-confirm-title"
                   className="font-display text-base font-bold text-[#F5F0E6]"
                 >
-                  {confirmAction.type === 'delete'
+                  {confirmAction.type === 'revoke_non_admins'
+                    ? tr('تأكيد إنهاء جلسات جميع المسجلين', 'Confirm Revoking All Non-Admin Sessions')
+                    : confirmAction.type === 'delete'
                     ? tr('تأكيد حذف الحساب نهائياً', 'Confirm Permanent Account Deletion')
                     : confirmAction.type === 'suspend'
                     ? tr('تأكيد تعليق الحساب مؤقتاً', 'Confirm Account Suspension')
@@ -1209,20 +1282,39 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
               </button>
             </div>
 
-            <div className="p-3 rounded-xl bg-[#09090B] border border-white/10 text-xs space-y-1">
-              <div className="font-semibold text-[#F5F0E6]">
-                {confirmAction.user.name} ·{' '}
-                <span className="text-[#E5C158]">
-                  {roleLabel(confirmAction.user.role)}
-                </span>
+            {confirmAction.type === 'revoke_non_admins' ? (
+              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-100 space-y-1">
+                <div className="font-semibold">
+                  {tr('نطاق التنفيذ: الطلاب والمعلمون فقط', 'Scope: Students & Teachers Only')}
+                </div>
+                <div className="text-[#C8C2B8]">
+                  {tr(
+                    'ستظل جلسة الأدمن الحالية وجميع جلسات المديرين الآخرين نشطة دون أي تسجيل خروج.',
+                    'Your current admin session and all other administrator sessions will stay active.'
+                  )}
+                </div>
               </div>
-              <div className="font-mono text-[#A8A29E]">
-                {confirmAction.user.email || confirmAction.user.phone}
+            ) : (
+              <div className="p-3 rounded-xl bg-[#09090B] border border-white/10 text-xs space-y-1">
+                <div className="font-semibold text-[#F5F0E6]">
+                  {confirmAction.user.name} ·{' '}
+                  <span className="text-[#E5C158]">
+                    {roleLabel(confirmAction.user.role)}
+                  </span>
+                </div>
+                <div className="font-mono text-[#A8A29E]">
+                  {confirmAction.user.email || confirmAction.user.phone}
+                </div>
               </div>
-            </div>
+            )}
 
             <p className="text-xs text-[#C8C2B8] leading-relaxed">
-              {confirmAction.type === 'delete'
+              {confirmAction.type === 'revoke_non_admins'
+                ? tr(
+                    'سيتم تسجيل خروج كل الطلاب والمعلمين المسجلين في المنصة فوراً وإلزامهم بتسجيل الدخول مرة أخرى من جديد، ولن يتم إنهاء جلسات الأدمن.',
+                    'All registered students and teachers will be signed out immediately and required to log in again. Admin sessions will remain untouched.'
+                  )
+                : confirmAction.type === 'delete'
                 ? tr(
                     'سيتم حذف هذا الحساب نهائياً مع كافة جلساته وتقدمه الدراسي ونتائج اختباراته. لا يمكن التراجع عن هذا الإجراء.',
                     'This will permanently remove the account, active sessions, learning progress, and quiz submissions. This action cannot be undone.'
@@ -1267,18 +1359,26 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
               </button>
               <button
                 type="button"
-                disabled={busyId === confirmAction.user.id}
+                disabled={
+                  confirmAction.type === 'revoke_non_admins'
+                    ? busyId === '__revoke_non_admins__'
+                    : busyId === confirmAction.user.id
+                }
                 onClick={executeConfirmedAction}
                 className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50 ${
                   confirmAction.type === 'delete'
                     ? 'bg-red-600 hover:bg-red-500 text-white'
-                    : confirmAction.type === 'suspend'
+                    : confirmAction.type === 'suspend' || confirmAction.type === 'revoke_non_admins'
                     ? 'bg-amber-600 hover:bg-amber-500 text-white'
                     : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                 }`}
               >
-                {busyId === confirmAction.user.id
+                {(confirmAction.type === 'revoke_non_admins'
+                  ? busyId === '__revoke_non_admins__'
+                  : busyId === confirmAction.user.id)
                   ? tr('جاري التنفيذ...', 'Processing...')
+                  : confirmAction.type === 'revoke_non_admins'
+                  ? tr('تأكيد إنهاء الجلسات', 'End Sessions Now')
                   : confirmAction.type === 'delete'
                   ? tr('تأكيد الحذف النهائي', 'Delete Permanently')
                   : confirmAction.type === 'suspend'
@@ -1290,240 +1390,24 @@ export function AdminUsersPanel({ onUsersChanged }: AdminUsersPanelProps) {
         </div>
       )}
 
-      {/* User Profile & Academic Statistics Modal */}
-      {profileOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="admin-profile-title"
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-        >
-          <div className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl bg-[#121216] border border-[#D4AF37]/40 p-5 sm:p-6 space-y-5">
-            <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
-              <div>
-                <h3
-                  id="admin-profile-title"
-                  className="font-display text-lg font-bold text-[#E5C158]"
-                >
-                  {tr(
-                    'الملف الأكاديمي وإحصائيات المستخدم',
-                    'User Profile & Academic Statistics'
-                  )}
-                </h3>
-                {profileModalData && (
-                  <p className="text-xs text-[#A8A29E] mt-0.5">
-                    {profileModalData.user.name} ·{' '}
-                    {roleLabel(profileModalData.user.role)} ·{' '}
-                    {formatYear(profileModalData.user.year)}
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setProfileOpen(false)}
-                aria-label={tr('إغلاق', 'Close')}
-                className="p-1.5 rounded-lg bg-[#151519] border border-white/10 text-[#C8C2B8] hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {profileLoading ? (
-              <div className="py-12 text-center text-xs text-[#A8A29E]">
-                {tr('جاري تحميل الملف والإحصائيات الأكاديمية...', 'Loading profile and academic statistics...')}
-              </div>
-            ) : profileModalData ? (
-              <div className="space-y-5">
-                {/* Identity & Account Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs p-3.5 rounded-xl bg-[#09090B] border border-white/10">
-                  <div>
-                    <div className="text-[#A8A29E]">{tr('البريد الإلكتروني', 'Email')}</div>
-                    <div className="font-mono text-[#F5F0E6] mt-0.5 break-all">
-                      {profileModalData.user.email || '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[#A8A29E]">{tr('رقم الهاتف', 'Phone')}</div>
-                    <div className="font-mono tabular-nums text-[#F5F0E6] mt-0.5">
-                      {profileModalData.user.phone || '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[#A8A29E]">{tr('حالة البريد والحساب', 'Verification & Status')}</div>
-                    <div className="mt-0.5 font-medium text-[#F5F0E6]">
-                      {profileModalData.user.isSuspended
-                        ? tr('معلق', 'Suspended')
-                        : tr('نشط', 'Active')}{' '}
-                      ·{' '}
-                      {profileModalData.user.emailVerified
-                        ? tr('بريد موثق', 'Email Verified')
-                        : tr('بريد غير موثق', 'Unverified')}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[#A8A29E]">{tr('تاريخ التسجيل', 'Registered At')}</div>
-                    <div className="font-mono tabular-nums text-[#C8C2B8] mt-0.5">
-                      {formatDateTime(profileModalData.user.createdAt)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[#A8A29E]">{tr('آخر تسجيل دخول', 'Last Login')}</div>
-                    <div className="font-mono tabular-nums text-[#C8C2B8] mt-0.5">
-                      {formatDateTime(profileModalData.user.lastLoginAt)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[#A8A29E]">{tr('معرّف المستخدم', 'User ID')}</div>
-                    <div className="font-mono text-[11px] text-[#78716C] mt-0.5 truncate">
-                      {profileModalData.user.id}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Academic Stats Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
-                  <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10">
-                    <div className="text-[#A8A29E] flex items-center gap-1">
-                      <Award className="w-3.5 h-3.5 text-[#D4AF37]" />
-                      <span>{tr('النقاط', 'Points')}</span>
-                    </div>
-                    <div className="font-mono text-lg font-bold text-[#E5C158] tabular-nums mt-1">
-                      {profileModalData.academicStats.points}
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10">
-                    <div className="text-[#A8A29E] flex items-center gap-1">
-                      <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>{tr('متوسط الدرجات', 'Avg Score')}</span>
-                    </div>
-                    <div className="font-mono text-lg font-bold text-emerald-400 tabular-nums mt-1">
-                      {profileModalData.academicStats.avgQuizScorePercent}%
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10">
-                    <div className="text-[#A8A29E] flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5 text-sky-400" />
-                      <span>{tr('الاختبارات', 'Quizzes')}</span>
-                    </div>
-                    <div className="font-mono text-lg font-bold text-[#F5F0E6] tabular-nums mt-1">
-                      {profileModalData.academicStats.quizzesCompleted}
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10">
-                    <div className="text-[#A8A29E] flex items-center gap-1">
-                      <BookOpen className="w-3.5 h-3.5 text-[#D4AF37]" />
-                      <span>{tr('مواد / ملخصات', 'Courses / PDFs')}</span>
-                    </div>
-                    <div className="font-mono text-lg font-bold text-[#F5F0E6] tabular-nums mt-1">
-                      {profileModalData.academicStats.enrolledCoursesCount} /{' '}
-                      {profileModalData.academicStats.completedSummariesCount}
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10">
-                    <div className="text-[#A8A29E] flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-amber-300" />
-                      <span>{tr('دقائق المذاكرة', 'Study Mins')}</span>
-                    </div>
-                    <div className="font-mono text-lg font-bold text-amber-200 tabular-nums mt-1">
-                      {profileModalData.academicStats.studyMinutes}
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#0D0D10] border border-white/10">
-                    <div className="text-[#A8A29E] flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>{tr('المهام / GPA', 'Tasks / GPA')}</span>
-                    </div>
-                    <div className="font-mono text-lg font-bold text-[#F5F0E6] tabular-nums mt-1">
-                      {profileModalData.academicStats.tasksCompleted}/
-                      {profileModalData.academicStats.tasksTotal} ·{' '}
-                      {profileModalData.academicStats.gpaEntriesCount}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Enrolled Courses */}
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-[#E5C158]">
-                    {tr('المواد المسجل بها', 'Enrolled Courses')} (
-                    {profileModalData.academicStats.enrolledCourses.length})
-                  </div>
-                  {profileModalData.academicStats.enrolledCourses.length === 0 ? (
-                    <p className="text-xs text-[#A8A29E]">
-                      {tr('لم يسجل في مواد بعد.', 'No enrolled courses recorded yet.')}
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      {profileModalData.academicStats.enrolledCourses.map((c) => (
-                        <div
-                          key={c.id}
-                          className="px-3 py-2 rounded-lg bg-[#09090B] border border-white/10 flex items-center justify-between gap-2"
-                        >
-                          <span className="text-[#F5F0E6] truncate">{c.title}</span>
-                          <span className="font-mono text-[11px] text-[#D4AF37] shrink-0">
-                            {c.code}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Recent Quiz Submissions */}
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-[#E5C158]">
-                    {tr('أحدث نتائج الاختبارات', 'Recent Quiz Submissions')}
-                  </div>
-                  {profileModalData.recentSubmissions.length === 0 ? (
-                    <p className="text-xs text-[#A8A29E]">
-                      {tr('لا توجد محاولات اختبار مسجلة حتى الآن.', 'No quiz attempts recorded yet.')}
-                    </p>
-                  ) : (
-                    <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#09090B]">
-                      <table className="w-full text-start border-collapse text-xs">
-                        <thead>
-                          <tr className="border-b border-white/10 text-[#A8A29E]">
-                            <th className="py-2 px-3">{tr('الاختبار', 'Quiz')}</th>
-                            <th className="py-2 px-3">{tr('المادة', 'Course')}</th>
-                            <th className="py-2 px-3 text-center">{tr('الصحيحة', 'Correct')}</th>
-                            <th className="py-2 px-3 text-end">{tr('الدرجة', 'Score')}</th>
-                            <th className="py-2 px-3 text-end">{tr('التاريخ', 'Date')}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                          {profileModalData.recentSubmissions.map((sub) => (
-                            <tr key={sub.id}>
-                              <td className="py-2 px-3 text-[#F5F0E6]">
-                                {sub.quizTitle}
-                              </td>
-                              <td className="py-2 px-3 text-[#A8A29E]">
-                                {sub.courseTitle}
-                              </td>
-                              <td className="py-2 px-3 text-center font-mono tabular-nums text-[#C8C2B8]">
-                                {sub.correctCount}/{sub.totalQuestions}
-                              </td>
-                              <td className="py-2 px-3 text-end font-mono tabular-nums font-semibold text-[#E5C158]">
-                                {sub.score}/{sub.maxScore}
-                              </td>
-                              <td className="py-2 px-3 text-end font-mono tabular-nums text-[#A8A29E] whitespace-nowrap">
-                                {formatDateTime(sub.submittedAt)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      )}
+      {/* User Profile, Academic Statistics & Admin Notes Modal */}
+      <AdminUserProfileModal
+        open={Boolean(profileTargetId)}
+        targetUserId={profileTargetId}
+        onClose={() => setProfileTargetId(null)}
+        onNotesChanged={() => {
+          if (showAuditLogs && canViewSensitive) {
+            loadAuditLogs();
+          }
+        }}
+        onUserUpdated={() => {
+          loadUsers();
+          if (showAuditLogs && canViewSensitive) {
+            loadAuditLogs();
+          }
+          onUsersChanged();
+        }}
+      />
     </section>
   );
 }

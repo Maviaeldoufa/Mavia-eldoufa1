@@ -1,8 +1,41 @@
+import { motion } from 'motion/react';
+import { useEffect, useRef, useState } from 'react';
+
 interface MviaBrandMarkProps {
   size?: 'sm' | 'md' | 'lg';
+  lit?: boolean;
+  interactive?: boolean;
 }
 
-export function MviaBrandMark({ size = 'sm' }: MviaBrandMarkProps) {
+export function MviaBrandMark({
+  size = 'sm',
+  lit = false,
+  interactive = true,
+}: MviaBrandMarkProps) {
+  const [selfLit, setSelfLit] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  const handleClick = () => {
+    if (!interactive) return;
+    setSelfLit(true);
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+    }
+    timerRef.current = window.setTimeout(() => setSelfLit(false), 900);
+  };
+
+  const isLit = lit || selfLit;
+  const isGlowing = isLit || hovered;
+  const floatAmplitude = size === 'sm' ? -2.5 : size === 'md' ? -4 : -5;
   const textClass =
     size === 'lg'
       ? 'text-4xl sm:text-5xl pt-4 px-5 pb-1.5'
@@ -18,16 +51,45 @@ export function MviaBrandMark({ size = 'sm' }: MviaBrandMarkProps) {
       : 'w-6 h-4 -top-[12px] -left-[3px]';
 
   return (
-    <span
+    <motion.span
       dir="ltr"
-      className={`relative inline-flex items-baseline whitespace-nowrap shrink-0 select-none font-display font-bold tracking-wider leading-none ${textClass}`}
+      onClick={handleClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      animate={{ y: [0, floatAmplitude, 0] }}
+      transition={{ duration: 4.0, repeat: Infinity, ease: 'easeInOut' }}
+      className={`relative inline-flex items-baseline whitespace-nowrap shrink-0 select-none font-display font-bold tracking-wider leading-none transition-all duration-200 ${textClass} ${
+        interactive ? 'cursor-pointer' : ''
+      } ${
+        isLit
+          ? 'drop-shadow-[0_0_20px_rgba(255,241,184,0.95)] brightness-125 scale-[1.03]'
+          : hovered
+          ? 'drop-shadow-[0_0_12px_rgba(229,193,88,0.65)] brightness-110'
+          : ''
+      }`}
     >
-      {/* Aimed Surveying Total Station on Tripod behind the MVIA wordmark */}
-      <svg
+      {isGlowing && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute -inset-1 rounded-xl blur-md transition-opacity duration-200 ${
+            isLit ? 'bg-[#FFF1B8]/30 opacity-100' : 'bg-[#D4AF37]/20 opacity-80'
+          }`}
+        />
+      )}
+      {/* Aimed Surveying Total Station on Tripod behind the MAVIA wordmark */}
+      <motion.svg
         viewBox="0 0 180 68"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="pointer-events-none absolute inset-0 w-full h-full overflow-visible opacity-45"
+        animate={{
+          opacity: isLit ? 1 : hovered ? 0.8 : [0.45, 0.7, 0.45],
+        }}
+        transition={{
+          duration: isGlowing ? 0.2 : 3.6,
+          repeat: isGlowing ? 0 : Infinity,
+          ease: 'easeInOut',
+        }}
+        className="pointer-events-none absolute inset-0 w-full h-full overflow-visible"
         aria-hidden="true"
       >
         <defs>
@@ -81,7 +143,7 @@ export function MviaBrandMark({ size = 'sm' }: MviaBrandMarkProps) {
           strokeDasharray="4 3"
         />
 
-        {/* Total Station Instrument Head & Yoke (Centered slightly left behind MVIA) */}
+        {/* Total Station Instrument Head & Yoke (Centered slightly left behind MAVIA) */}
         <g transform="translate(36, 4)">
           {/* Carry Handle */}
           <path
@@ -159,16 +221,18 @@ export function MviaBrandMark({ size = 'sm' }: MviaBrandMarkProps) {
             strokeLinecap="round"
           />
         </g>
-      </svg>
+      </motion.svg>
 
-      {/* Foreground Unified MVIA Wordmark with Engineer Hard Hat Directly on First Letter M */}
+      {/* Foreground Unified MAVIA Wordmark with Engineer Hard Hat Directly on First Letter M */}
       <span className="relative z-10 inline-flex items-baseline drop-shadow-[0_2px_8px_rgba(9,9,11,0.95)]">
         <span className="relative inline-block">
-          <svg
+          <motion.svg
             viewBox="0 0 64 42"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className={`pointer-events-none absolute ${hatDims} -rotate-12 drop-shadow-[0_2px_6px_rgba(212,175,55,0.55)]`}
+            animate={{ rotate: [-12, -8, -12], y: [0, -1.5, 0] }}
+            transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+            className={`pointer-events-none absolute ${hatDims} drop-shadow-[0_2px_6px_rgba(212,175,55,0.55)]`}
             aria-hidden="true"
           >
             <defs>
@@ -219,16 +283,16 @@ export function MviaBrandMark({ size = 'sm' }: MviaBrandMarkProps) {
               stroke="#09090B"
               strokeWidth="1.8"
             />
-          </svg>
+          </motion.svg>
           <span className="bg-gradient-to-b from-[#FFF1B8] via-[#E5C158] to-[#C6931B] bg-clip-text text-transparent">
             M
           </span>
         </span>
 
         <span className="bg-gradient-to-b from-[#FFF1B8] via-[#E5C158] to-[#C6931B] bg-clip-text text-transparent">
-          VIA
+          AVIA
         </span>
       </span>
-    </span>
+    </motion.span>
   );
 }

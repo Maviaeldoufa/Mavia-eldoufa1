@@ -12,6 +12,7 @@ export type AdminPermissionKey =
   | 'manage_learning'
   | 'manage_community'
   | 'manage_students'
+  | 'manage_user_notes'
   | 'manage_support'
   | 'view_sensitive_data';
 
@@ -77,6 +78,18 @@ export interface PublicSupportOfficial {
   displayName: string;
   titleNote?: string;
   hasWhatsapp: boolean;
+  whatsappUrl?: string;
+}
+
+export interface PublicSupportLeader {
+  id: string;
+  displayName: string;
+  titleAr: string;
+  titleEn: string;
+  urgencyNoteAr: string;
+  urgencyNoteEn: string;
+  hasWhatsapp: boolean;
+  whatsappUrl?: string;
 }
 
 export interface PublicSupportRank {
@@ -110,9 +123,54 @@ export interface AdminPermissionMeta {
   superAdminOnly?: boolean;
 }
 
+export interface SupportTeamMember {
+  id: string;
+  slotNumber: number; // 1..7
+  userId: string;
+  displayName: string;
+  specialty?: string;
+  whatsappNumber: string;
+  isActive: boolean;
+  assignedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicSupportTeamMember {
+  id: string;
+  slotNumber: number;
+  userId: string;
+  displayName: string;
+  specialty?: string;
+  hasWhatsapp: boolean;
+  whatsappUrl?: string;
+}
+
+export type NoteReactionEmoji = '👍' | '❤️' | '👏' | '🔥' | '💡' | '✅';
+
+export interface UserProfileNoteReaction {
+  userId: string;
+  userName: string;
+  emoji: NoteReactionEmoji;
+  reactedAt: string;
+}
+
+export interface UserProfileNote {
+  id: string;
+  targetUserId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  reactions: UserProfileNoteReaction[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminRanksDirectoryResponse {
   ranks: AdminRank[];
   officials: AdminOfficial[];
+  supportTeam: SupportTeamMember[];
+  maxSupportTeamSize: number;
   candidates: AdminRankCandidateUser[];
   permissionsCatalog: AdminPermissionMeta[];
   canEditRanks: boolean;
@@ -165,13 +223,26 @@ export interface CourseFolder {
   description?: string;
   coverUrl?: string;
   releaseAt?: string;
+  viewsCount?: number;
+  isTrending?: boolean;
+  courseTitle?: string;
+  courseCode?: string;
+  courseYear?: AcademicYear;
+  courseTrack?: 'GIS' | 'Programming' | 'General';
+  booksCount?: number;
+  summariesCount?: number;
+  quizzesCount?: number;
+  assignmentsCount?: number;
   createdAt: string;
 }
+
+export type SummaryCategory = 'book' | 'summary';
 
 export interface SummaryItem {
   id: string;
   courseId: string;
   folderId?: string;
+  category?: SummaryCategory;
   title: string;
   description: string;
   fileUrl?: string;
@@ -183,6 +254,23 @@ export interface SummaryItem {
   createdAt: string;
 }
 
+export interface CourseAssignment {
+  id: string;
+  courseId: string;
+  folderId?: string;
+  title: string;
+  type: 'pdf' | 'image' | 'text';
+  contentText?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  roleTag?: 'assignment' | 'submission';
+  createdBy: string;
+  createdById: string;
+  createdAt: string;
+}
+
 export interface QuizQuestion {
   id: string;
   question: string;
@@ -191,11 +279,16 @@ export interface QuizQuestion {
   explanation?: string;
 }
 
+export type QuizDifficulty = 'easy' | 'medium' | 'hard';
+
 export interface Quiz {
   id: string;
   courseId: string;
   folderId?: string;
   title: string;
+  difficulty?: QuizDifficulty;
+  generatedByAi?: boolean;
+  isPracticeOnly?: boolean;
   durationMinutes: number;
   pointsPerQuestion: number;
   randomizeQuestions?: boolean;
@@ -324,15 +417,24 @@ export interface AdminAnalyticsData {
 
 export type AdminAuditAction =
   | 'user.create'
+  | 'user.credentials_update'
+  | 'user.admin_activated'
   | 'user.suspend'
   | 'user.activate'
   | 'user.delete'
   | 'user.profile_view'
+  | 'user.note_create'
+  | 'user.note_delete'
   | 'users.csv_export'
   | 'rank.update'
+  | 'admin.activation_password_update'
   | 'official.assign'
   | 'official.update'
-  | 'official.remove';
+  | 'official.remove'
+  | 'support_team.assign'
+  | 'support_team.update'
+  | 'support_team.remove'
+  | 'sessions.revoke_non_admins';
 
 export interface AdminAuditLog {
   id: string;
@@ -403,6 +505,7 @@ export interface AdminUserProfileResponse {
     }>;
   };
   recentSubmissions: AdminUserProfileSubmission[];
+  notes?: UserProfileNote[];
 }
 
 export interface SupportTicket {
@@ -454,9 +557,17 @@ export interface SystemStatusData {
   services: {
     api: 'up';
     database: 'up';
-    websocket: 'up';
+    websocket: 'up' | 'polling';
     aiConfigured: boolean;
     emailConfigured: boolean;
+    supabaseConfigured?: boolean;
+    supabaseDetails?: {
+      urlConfigured: boolean;
+      publishableKeyConfigured: boolean;
+      serviceRoleConfigured: boolean;
+      dbEnabled: boolean;
+    };
+    storageMode?: 'supabase' | 'local';
   };
 }
 
@@ -548,6 +659,50 @@ export interface AvailableCourseItem extends Course {
   enrolled: boolean;
 }
 
+export interface StudentAchievement {
+  id: string;
+  titleAr: string;
+  titleEn: string;
+  descAr: string;
+  descEn: string;
+  badgeIcon: 'flag' | 'zap' | 'medal' | 'trophy' | 'clock' | 'book' | 'crown';
+  color: 'sky' | 'violet' | 'gold' | 'amber' | 'emerald';
+  earned: boolean;
+  progressPercent: number;
+}
+
+export interface TrackStrengthBreakdown {
+  track: 'GIS' | 'Programming' | 'General';
+  labelAr: string;
+  labelEn: string;
+  attempts: number;
+  hasData: boolean;
+  strengthPercent: number;
+  weaknessPercent: number;
+}
+
+export interface CourseStrengthBreakdown {
+  courseId: string;
+  courseTitle: string;
+  courseCode: string;
+  track: 'GIS' | 'Programming' | 'General';
+  attempts: number;
+  strengthPercent: number;
+  weaknessPercent: number;
+}
+
+export interface StrengthWeaknessSummary {
+  overallStrengthPercent: number;
+  overallWeaknessPercent: number;
+  hasQuizData: boolean;
+  hasSignal: boolean;
+  avgQuizScorePercent: number;
+  strongestArea: { label: string; percent: number } | null;
+  weakestArea: { label: string; percent: number } | null;
+  trackBreakdown: TrackStrengthBreakdown[];
+  courseBreakdown: CourseStrengthBreakdown[];
+}
+
 export interface StudentDashboardData {
   completionPercentage: number;
   enrolledCourses: EnrolledCourseProgress[];
@@ -555,6 +710,14 @@ export interface StudentDashboardData {
   lastLesson: LastLessonRecord | null;
   upcomingQuizzes: UpcomingQuizItem[];
   tasks: StudentTask[];
+  personalInfo?: User & {
+    leaderboardRank: number;
+    totalRankedUsers: number;
+  };
+  achievements?: StudentAchievement[];
+  earnedBadgesCount?: number;
+  totalBadgesCount?: number;
+  strengthsAndWeaknesses?: StrengthWeaknessSummary;
   stats: {
     studyMinutes: number;
     completedLessonsCount: number;

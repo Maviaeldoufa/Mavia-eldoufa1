@@ -166,6 +166,46 @@ export function QuizRunner({
         selectedIndex: currentAnswers[idx] ?? -1,
       }));
 
+      if (quiz.isPracticeOnly) {
+        let correctCount = 0;
+        const breakdown: QuizQuestionBreakdown[] = renderedQuestions.map((rq, idx) => {
+          const origQ = quiz.questions.find((q) => q.id === rq.id);
+          const selectedIdx = currentAnswers[idx] ?? -1;
+          const correctIndex = origQ ? origQ.correctIndex : 0;
+          const isCorrect = selectedIdx === correctIndex;
+          if (isCorrect) correctCount += 1;
+          return {
+            questionId: rq.id,
+            question: rq.question,
+            options: origQ ? origQ.options : rq.displayOptions.map((o) => o.label),
+            selectedIndex: selectedIdx,
+            correctIndex,
+            isCorrect,
+            explanation: rq.explanation,
+          };
+        });
+        const totalQuestions = breakdown.length;
+        const score = correctCount * (quiz.pointsPerQuestion || 20);
+        const maxScore = totalQuestions * (quiz.pointsPerQuestion || 20);
+        const practiceSub: QuizSubmission = {
+          id: `practice-sub-${Date.now()}`,
+          quizId: quiz.id,
+          courseId: quiz.courseId,
+          userId: 'practice',
+          score,
+          maxScore,
+          correctCount,
+          totalQuestions,
+          timeSpentSeconds,
+          breakdown,
+          submittedAt: new Date().toISOString(),
+        };
+        setResult(practiceSub);
+        submittingRef.current = false;
+        setSubmitting(false);
+        return;
+      }
+
       try {
         const data = await apiRequest<{
           submission: QuizSubmission;
@@ -188,7 +228,7 @@ export function QuizRunner({
         setSubmitting(false);
       }
     },
-    [onSubmitted, quiz.id, renderedQuestions, result, setUserDirect, totalExamSeconds, tr]
+    [onSubmitted, quiz, renderedQuestions, result, setUserDirect, totalExamSeconds, tr]
   );
 
   // Live countdown timer

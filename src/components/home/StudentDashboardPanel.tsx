@@ -15,6 +15,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import type { StudentDashboardData } from '../../types';
 import { apiRequest } from '../../utils/api';
 import { GoldChip } from '../ui/GoldChip';
+import { RankBadge } from '../ui/RankBadge';
 
 interface StudentDashboardPanelProps {
   onOpenCourse: (courseId: string) => void;
@@ -163,9 +164,11 @@ export function StudentDashboardPanel({
     lastLesson,
     upcomingQuizzes,
     tasks,
+    personalInfo,
     stats,
   } = data;
 
+  const displayUser = personalInfo || user;
   const totalItemsCompleted =
     stats.completedLessonsCount + stats.completedQuizzesCount;
   const totalItemsAvailable = stats.totalLessonsCount + stats.totalQuizzesCount;
@@ -177,18 +180,24 @@ export function StudentDashboardPanel({
       <div className="p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2 text-xs text-[#D4AF37]">
-            <span>{tr('لوحة التحكم الشخصية', 'Personal Student Dashboard')}</span>
+            <span>{tr('المسار الدراسي والتقدم', 'Academic Progress & Planner')}</span>
             <span aria-hidden="true">·</span>
-            <span>{user?.name}</span>
-            {user && (
+            <span>{displayUser?.name}</span>
+            {displayUser && (
               <>
                 <span aria-hidden="true">·</span>
-                <span>{formatYear(user.year)}</span>
+                <span>{formatYear(displayUser.year)}</span>
               </>
+            )}
+            {displayUser?.rankBadge && (
+              <RankBadge rankBadge={displayUser.rankBadge} size="xs" />
             )}
           </div>
           <h2 className="font-display text-xl sm:text-2xl font-bold text-[#F5F0E6]">
-            {tr('متابعة مستواك وتقدمك الدراسي', 'Your Learning Progress & Overview')}
+            {tr(
+              'الكورسات المسجلة، تقدمك الدراسي، والمهام القادمة',
+              'Enrolled Courses, Study Progress & Upcoming Tasks'
+            )}
           </h2>
         </div>
 

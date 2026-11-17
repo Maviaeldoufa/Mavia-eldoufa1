@@ -17,8 +17,8 @@ export function Footer() {
             <div className="space-y-2">
               <span>
                 {tr(
-                  'منصة MVIA التعليمية — جميع الدفعات من الفرقة الأولى للرابعة · GIS والبرمجة',
-                  'MVIA Educational Platform — Academic Years 1–4 · GIS & Programming'
+                  'منصة MAVIA التعليمية — جميع الدفعات من الفرقة الأولى للرابعة · GIS والبرمجة',
+                  'MAVIA Educational Platform — Academic Years 1–4 · GIS & Programming'
                 )}
               </span>
               <div className="flex flex-wrap items-center gap-2">

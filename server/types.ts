@@ -10,6 +10,7 @@ export type AdminPermissionKey =
   | 'manage_learning'
   | 'manage_community'
   | 'manage_students'
+  | 'manage_user_notes'
   | 'manage_support'
   | 'view_sensitive_data';
 
@@ -56,6 +57,39 @@ export interface AdminOfficial {
   showInSupport: boolean;
   isActive: boolean;
   assignedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportTeamMember {
+  id: string;
+  slotNumber: number; // 1..7
+  userId: string;
+  displayName: string;
+  specialty?: string;
+  whatsappNumber: string; // Private server-side only; never returned in public/student endpoints
+  isActive: boolean;
+  assignedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NoteReactionEmoji = '👍' | '❤️' | '👏' | '🔥' | '💡' | '✅';
+
+export interface UserProfileNoteReaction {
+  userId: string;
+  userName: string;
+  emoji: NoteReactionEmoji;
+  reactedAt: string;
+}
+
+export interface UserProfileNote {
+  id: string;
+  targetUserId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  reactions: UserProfileNoteReaction[];
   createdAt: string;
   updatedAt: string;
 }
@@ -120,13 +154,17 @@ export interface CourseFolder {
   description?: string;
   coverUrl?: string;
   releaseAt?: string;
+  viewedBy?: string[];
   createdAt: string;
 }
+
+export type SummaryCategory = 'book' | 'summary';
 
 export interface SummaryItem {
   id: string;
   courseId: string;
   folderId?: string;
+  category?: SummaryCategory;
   title: string;
   description: string;
   fileUrl?: string;
@@ -138,6 +176,23 @@ export interface SummaryItem {
   createdAt: string;
 }
 
+export interface CourseAssignment {
+  id: string;
+  courseId: string;
+  folderId?: string;
+  title: string;
+  type: 'pdf' | 'image' | 'text';
+  contentText?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  roleTag?: 'assignment' | 'submission';
+  createdBy: string;
+  createdById: string;
+  createdAt: string;
+}
+
 export interface QuizQuestion {
   id: string;
   question: string;
@@ -146,11 +201,15 @@ export interface QuizQuestion {
   explanation?: string;
 }
 
+export type QuizDifficulty = 'easy' | 'medium' | 'hard';
+
 export interface Quiz {
   id: string;
   courseId: string;
   folderId?: string;
   title: string;
+  difficulty?: QuizDifficulty;
+  generatedByAi?: boolean;
   durationMinutes: number;
   pointsPerQuestion: number;
   randomizeQuestions?: boolean;
@@ -271,6 +330,9 @@ export interface PlatformAnalytics {
 export interface PlatformConfig {
   whatsappNumber: string;
   telegramUrl: string;
+  adminActivationPasswordHash?: string;
+  adminActivationPasswordUpdatedAt?: string;
+  adminActivationDefaultRankId?: string;
 }
 
 export interface LearningLink {
@@ -390,15 +452,24 @@ export interface MaintenanceState {
 
 export type AdminAuditAction =
   | 'user.create'
+  | 'user.credentials_update'
+  | 'user.admin_activated'
   | 'user.suspend'
   | 'user.activate'
   | 'user.delete'
   | 'user.profile_view'
+  | 'user.note_create'
+  | 'user.note_delete'
   | 'users.csv_export'
   | 'rank.update'
+  | 'admin.activation_password_update'
   | 'official.assign'
   | 'official.update'
-  | 'official.remove';
+  | 'official.remove'
+  | 'support_team.assign'
+  | 'support_team.update'
+  | 'support_team.remove'
+  | 'sessions.revoke_non_admins';
 
 export interface AdminAuditLog {
   id: string;
@@ -418,6 +489,7 @@ export interface DatabaseSchema {
   courses: Course[];
   folders?: CourseFolder[];
   summaries: SummaryItem[];
+  assignments?: CourseAssignment[];
   quizzes: Quiz[];
   quizSubmissions: QuizSubmission[];
   announcements?: AnnouncementCountdown[];
@@ -437,4 +509,6 @@ export interface DatabaseSchema {
   adminAuditLogs?: AdminAuditLog[];
   adminRanks?: AdminRank[];
   adminOfficials?: AdminOfficial[];
+  supportTeam?: SupportTeamMember[];
+  userProfileNotes?: UserProfileNote[];
 }

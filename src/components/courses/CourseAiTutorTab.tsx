@@ -2,7 +2,7 @@ import { BookCheck, GraduationCap, Send } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import type { Course, SummaryItem } from '../../types';
+import type { Course, CourseAssignment, SummaryItem } from '../../types';
 import { apiRequest } from '../../utils/api';
 import { GoldChip } from '../ui/GoldChip';
 
@@ -18,9 +18,18 @@ interface TutorMessage {
 interface CourseAiTutorTabProps {
   course: Course;
   summaries: SummaryItem[];
+  assignments?: CourseAssignment[];
+  folderId?: string;
+  folderName?: string;
 }
 
-export function CourseAiTutorTab({ course, summaries }: CourseAiTutorTabProps) {
+export function CourseAiTutorTab({
+  course,
+  summaries,
+  assignments = [],
+  folderId,
+  folderName,
+}: CourseAiTutorTabProps) {
   const { user } = useAuth();
   const { tr, formatYear } = useLanguage();
   const [level, setLevel] = useState<ExplanationLevel>('standard');
@@ -29,12 +38,16 @@ export function CourseAiTutorTab({ course, summaries }: CourseAiTutorTabProps) {
       id: 'tutor-welcome',
       role: 'model',
       text: tr(
-        `أهلاً بك في المدرس الذكي لمادة "${course.title}". اكتب أي جزئية مش فاهمها، وسأشرحها لك بمستواك (${
+        `أهلاً بك في المدرس الذكي ${
+          folderName ? `لمجلد "${folderName}" في مادة "${course.title}"` : `لمادة "${course.title}"`
+        }. اكتب أي جزئية مش فاهمها، وسأشرحها لك بمستواك (${
           user ? formatYear(user.year) : 'الجامعي'
-        }) بالاعتماد على الكتب وملخصات الـ PDF المرفوعة لهذه المادة.`,
-        `Welcome to the AI Course Tutor for "${course.title}". Ask about any topic you find tricky, and I will explain it at your level (${
+        }) بالاعتماد على الكتب والملخصات والتكليفات المرفوعة.`,
+        `Welcome to the AI Tutor for ${
+          folderName ? `folder "${folderName}" in "${course.title}"` : `"${course.title}"`
+        }. Ask about any topic and I will explain it at your level (${
           user ? formatYear(user.year) : 'University'
-        }) grounded in the uploaded books and PDF summaries for this course.`
+        }) grounded in the uploaded books, summaries, and assignments.`
       ),
     },
   ]);
@@ -92,6 +105,7 @@ export function CourseAiTutorTab({ course, summaries }: CourseAiTutorTabProps) {
           body: JSON.stringify({
             question: clean,
             level,
+            folderId: folderId || undefined,
             history: nextHistory.map((m) => ({ role: m.role, text: m.text })),
           }),
         }
@@ -166,9 +180,11 @@ export function CourseAiTutorTab({ course, summaries }: CourseAiTutorTabProps) {
         <div className="pt-2.5 border-t border-white/10 flex flex-wrap items-center gap-2 text-xs text-[#A8A29E]">
           <BookCheck className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
           <span>
-            {tr('المصادر المعتمدة للشرح في هذه المادة:', 'Course reference sources:')}
+            {folderName
+              ? tr(`المصادر المعتمدة في مجلد "${folderName}":`, `Sources in folder "${folderName}":`)
+              : tr('المصادر المعتمدة للشرح في هذه المادة:', 'Course reference sources:')}
           </span>
-          {summaries.length === 0 ? (
+          {summaries.length === 0 && assignments.length === 0 ? (
             <span>
               {tr(
                 'لا توجد ملخصات أو كتب مرفوعة بعد (سيتعرف عليها تلقائياً بمجرد رفعها).',
@@ -177,7 +193,10 @@ export function CourseAiTutorTab({ course, summaries }: CourseAiTutorTabProps) {
             </span>
           ) : (
             <span className="text-[#C8C2B8]">
-              {summaries.map((s) => s.fileName || s.title).join(' · ')}
+              {[
+                ...summaries.map((s) => s.fileName || s.title),
+                ...assignments.map((a) => a.fileName || a.title),
+              ].join(' · ')}
             </span>
           )}
         </div>

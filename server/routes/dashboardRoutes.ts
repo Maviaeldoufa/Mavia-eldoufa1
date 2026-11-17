@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { Router } from 'express';
 import { requireAuth } from '../auth.ts';
 import type { AuthenticatedRequest } from '../auth.ts';
-import { db } from '../db.ts';
+import { db, toSafeUser } from '../db.ts';
 import type { StudentProgressRecord, StudentTask, User } from '../types.ts';
 
 const router = Router();
@@ -183,6 +183,208 @@ router.get('/student/dashboard', requireAuth, (req: AuthenticatedRequest, res) =
     enrolled: enrolledSet.has(c.id),
   }));
 
+  const userSubmissions = (store.quizSubmissions || []).filter(
+    (s) => s.userId === user.id
+  );
+  const totalQuizMaxScore = userSubmissions.reduce((sum, s) => sum + (s.maxScore || 0), 0);
+  const totalQuizScore = userSubmissions.reduce((sum, s) => sum + (s.score || 0), 0);
+  const hasQuizData = userSubmissions.length > 0 && totalQuizMaxScore > 0;
+  const avgQuizScorePercent = hasQuizData
+    ? Math.round((totalQuizScore / totalQuizMaxScore) * 100)
+    : 0;
+
+  // Compute leaderboard position cleanly
+  const rankedUsers = [...store.users].sort((a, b) => b.points - a.points);
+  const leaderboardRank = rankedUsers.findIndex((u) => u.id === user.id) + 1;
+
+  // Dynamic achievements & medals earned from real DB records
+  const totalSummariesCompleted = progress.completedSummaryIds.length;
+  const achievements = [
+    {
+      id: 'first-step',
+      titleAr: 'أول خطوة في المنصة',
+      titleEn: 'First Step',
+      descAr: 'إتمام أول ملخص دراسي أو اختبار شامل',
+      descEn: 'Complete your first summary or quiz',
+      badgeIcon: 'flag',
+      color: 'sky',
+      earned: user.quizzesCompleted >= 1 || totalSummariesCompleted >= 1,
+      progressPercent:
+        user.quizzesCompleted >= 1 || totalSummariesCompleted >= 1 ? 100 : 0,
+    },
+    {
+      id: 'quiz-challenger',
+      titleAr: 'متحدي الاختبارات',
+      titleEn: 'Quiz Challenger',
+      descAr: 'اجتياز 3 اختبارات شاملة على الأقل',
+      descEn: 'Complete 3 or more platform quizzes',
+      badgeIcon: 'zap',
+      color: 'violet',
+      earned: user.quizzesCompleted >= 3,
+      progressPercent: Math.min(100, Math.round((user.quizzesCompleted / 3) * 100)),
+    },
+    {
+      id: 'excellence-medal',
+      titleAr: 'وسام التفوق الأكاديمي',
+      titleEn: 'Excellence Medal',
+      descAr: 'تحقيق متوسط درجات 80% فأعلى في الاختبارات',
+      descEn: 'Achieve an 80%+ average score across quizzes',
+      badgeIcon: 'medal',
+      color: 'gold',
+      earned: hasQuizData && avgQuizScorePercent >= 80,
+      progressPercent: hasQuizData
+        ? Math.min(100, Math.round((avgQuizScorePercent / 80) * 100))
+        : 0,
+    },
+    {
+      id: 'points-champion',
+      titleAr: 'وسام حاصد النقاط',
+      titleEn: 'Points Champion',
+      descAr: 'تجميع 500 نقطة أو أكثر في لوحة التصدر',
+      descEn: 'Reach 500+ points on the leaderboard',
+      badgeIcon: 'trophy',
+      color: 'amber',
+      earned: user.points >= 500,
+      progressPercent: Math.min(100, Math.round((user.points / 500) * 100)),
+    },
+    {
+      id: 'study-dedication',
+      titleAr: 'وسام المثابرة والالتزام',
+      titleEn: 'Study Dedication',
+      descAr: 'تسجيل 60 دقيقة مذاكرة أو أكثر',
+      descEn: 'Log at least 60 minutes of active study time',
+      badgeIcon: 'clock',
+      color: 'emerald',
+      earned: progress.studyMinutes >= 60,
+      progressPercent: Math.min(100, Math.round((progress.studyMinutes / 60) * 100)),
+    },
+    {
+      id: 'course-explorer',
+      titleAr: 'مستكشف المواد والمسارات',
+      titleEn: 'Track Explorer',
+      descAr: 'التسجيل في مادتين فأكثر وإنجاز ملخص',
+      descEn: 'Enroll in 2+ courses and finish a summary',
+      badgeIcon: 'book',
+      color: 'sky',
+      earned: enrolledCourses.length >= 2 && totalSummariesCompleted >= 1,
+      progressPercent: Math.min(
+        100,
+        Math.round(
+          ((Math.min(2, enrolledCourses.length) +
+            (totalSummariesCompleted >= 1 ? 1 : 0)) /
+            3) *
+            100
+        )
+      ),
+    },
+    {
+      id: 'top-three',
+      titleAr: 'تاج نخبة الدفعة (أفضل 3)',
+      titleEn: 'Top 3 Elite Crown',
+      descAr: 'التواجد ضمن المراكز الثلاثة الأولى بالمنصة',
+      descEn: 'Rank among the Top 3 students on the leaderboard',
+      badgeIcon: 'crown',
+      color: 'gold',
+      earned: leaderboardRank > 0 && leaderboardRank <= 3,
+      progressPercent:
+        leaderboardRank > 0 && leaderboardRank <= 3
+          ? 100
+          : Math.max(10, Math.min(85, Math.round((3 / Math.max(3, leaderboardRank)) * 100))),
+    },
+  ];
+
+  // Strength & Weakness percentages per Track & per Course
+  const trackLabels: Record<'GIS' | 'Programming' | 'General', { ar: string; en: string }> = {
+    GIS: { ar: 'نظم المعلومات الجغرافية (GIS)', en: 'GIS' },
+    Programming: { ar: 'البرمجة وتطوير الأنظمة', en: 'Programming' },
+    General: { ar: 'المواد العامة', en: 'General' },
+  };
+
+  const trackBreakdown = (['GIS', 'Programming', 'General'] as const)
+    .map((track) => {
+      const trackCourses = store.courses.filter((c) => c.track === track);
+      const trackCourseIds = new Set(trackCourses.map((c) => c.id));
+      const trackSubs = userSubmissions.filter((s) => trackCourseIds.has(s.courseId));
+      const tMax = trackSubs.reduce((sum, s) => sum + (s.maxScore || 0), 0);
+      const tScore = trackSubs.reduce((sum, s) => sum + (s.score || 0), 0);
+
+      let strengthPercent = 0;
+      let hasData = false;
+      if (trackSubs.length > 0 && tMax > 0) {
+        strengthPercent = Math.round((tScore / tMax) * 100);
+        hasData = true;
+      } else {
+        const trackEnrolled = enrolledCourses.filter((e) => e.course.track === track);
+        if (trackEnrolled.length > 0) {
+          const avgTrackCompletion = Math.round(
+            trackEnrolled.reduce((sum, e) => sum + e.progressPercent, 0) /
+              trackEnrolled.length
+          );
+          if (avgTrackCompletion > 0) {
+            strengthPercent = avgTrackCompletion;
+            hasData = true;
+          }
+        }
+      }
+
+      return {
+        track,
+        labelAr: trackLabels[track].ar,
+        labelEn: trackLabels[track].en,
+        attempts: trackSubs.length,
+        hasData,
+        strengthPercent,
+        weaknessPercent: hasData ? 100 - strengthPercent : 0,
+      };
+    })
+    .filter((item) => item.track !== 'General' || item.hasData || item.attempts > 0);
+
+  const courseBreakdown = store.courses
+    .map((course) => {
+      const subs = userSubmissions.filter((s) => s.courseId === course.id);
+      if (subs.length === 0) return null;
+      const cMax = subs.reduce((sum, s) => sum + (s.maxScore || 0), 0);
+      const cScore = subs.reduce((sum, s) => sum + (s.score || 0), 0);
+      const strengthPercent = cMax > 0 ? Math.round((cScore / cMax) * 100) : 0;
+      return {
+        courseId: course.id,
+        courseTitle: course.title,
+        courseCode: course.code,
+        track: course.track,
+        attempts: subs.length,
+        strengthPercent,
+        weaknessPercent: 100 - strengthPercent,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+
+  const overallStrengthPercent = hasQuizData
+    ? avgQuizScorePercent
+    : completionPercentage;
+  const overallHasSignal = hasQuizData || completionPercentage > 0;
+  const overallWeaknessPercent = overallHasSignal
+    ? Math.max(0, 100 - overallStrengthPercent)
+    : 0;
+
+  const areasWithData =
+    courseBreakdown.length > 0
+      ? courseBreakdown.map((c) => ({
+          label: `${c.courseTitle} (${c.courseCode})`,
+          percent: c.strengthPercent,
+        }))
+      : trackBreakdown
+          .filter((t) => t.hasData)
+          .map((t) => ({ label: t.labelAr, percent: t.strengthPercent }));
+
+  const sortedAreasDesc = [...areasWithData].sort((a, b) => b.percent - a.percent);
+  const strongestArea = sortedAreasDesc[0] || null;
+  const weakestArea =
+    sortedAreasDesc.length > 1
+      ? sortedAreasDesc[sortedAreasDesc.length - 1]
+      : sortedAreasDesc.length === 1 && sortedAreasDesc[0].percent < 100
+      ? sortedAreasDesc[0]
+      : null;
+
   res.json({
     completionPercentage,
     enrolledCourses,
@@ -190,6 +392,25 @@ router.get('/student/dashboard', requireAuth, (req: AuthenticatedRequest, res) =
     lastLesson: progress.lastLesson || null,
     upcomingQuizzes,
     tasks: progress.tasks,
+    personalInfo: {
+      ...toSafeUser(user),
+      leaderboardRank,
+      totalRankedUsers: rankedUsers.length,
+    },
+    achievements,
+    earnedBadgesCount: achievements.filter((a) => a.earned).length,
+    totalBadgesCount: achievements.length,
+    strengthsAndWeaknesses: {
+      overallStrengthPercent,
+      overallWeaknessPercent,
+      hasQuizData,
+      hasSignal: overallHasSignal,
+      avgQuizScorePercent,
+      strongestArea,
+      weakestArea,
+      trackBreakdown,
+      courseBreakdown,
+    },
     stats: {
       studyMinutes: progress.studyMinutes,
       completedLessonsCount: completedLessonsInEnrolled,

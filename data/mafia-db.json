@@ -14,78 +14,6 @@
       "adminRankId": "rank-super-admin"
     },
     {
-      "id": "user-std-1",
-      "name": "أحمد طارق المنسي",
-      "phone": "01011112222",
-      "passwordHash": "5ab269b9f536d1898ae25e8223145c5f:eaf6540f2586017901e8df7db9dba0265612b1cf26bac249ff878b0cf9e23d8fe9b6a4fc0e081dbdf8f768d6900cd4d3db4a9ec18b31df740af52fd54b4fa080",
-      "year": 4,
-      "role": "student",
-      "isProtected": false,
-      "points": 910,
-      "quizzesCompleted": 11,
-      "createdAt": "2026-11-15T20:08:10.408Z"
-    },
-    {
-      "id": "user-std-2",
-      "name": "مريم حسام الدين",
-      "phone": "01022223333",
-      "passwordHash": "58c114b1ffb574215cac61bc927b752b:22e559d9ee7bec4b54a3f0b49b0511591e8dade6dc3c3fd89cc98763c5ae686e750e7994a095723ca1ffa66bdc92683893548376a53082ecabe6e9cf17af8303",
-      "year": 3,
-      "role": "student",
-      "isProtected": false,
-      "points": 840,
-      "quizzesCompleted": 9,
-      "createdAt": "2026-11-15T20:08:10.408Z"
-    },
-    {
-      "id": "user-std-3",
-      "name": "يوسف خالد الشناوي",
-      "phone": "01033334444",
-      "passwordHash": "a6f2825c8150d8b96cfd71a32923c27b:d957454f54e13133c62fa8863352cfd0c1efda58ac13763126cc3f694ca66a80e4c2490873defd0449842d605b30ac9d8cad1439e414cfdd5c8998a217d05772",
-      "year": 2,
-      "role": "student",
-      "isProtected": false,
-      "points": 760,
-      "quizzesCompleted": 8,
-      "createdAt": "2026-11-15T20:08:10.408Z"
-    },
-    {
-      "id": "user-std-4",
-      "name": "نورهان عبد الرحمن",
-      "phone": "01044445555",
-      "passwordHash": "841eedb7b360a4d670c07a39885b08f0:2801cf6769e8f301c00ff52b4c367c127731d79945984a7623cce14d87aa8c16fa57ad8096aa471fda55f71622514803c97074aad6065b7be2326a3ee9a95898",
-      "year": 1,
-      "role": "student",
-      "isProtected": false,
-      "points": 710,
-      "quizzesCompleted": 7,
-      "createdAt": "2026-11-15T20:08:10.408Z"
-    },
-    {
-      "id": "user-std-5",
-      "name": "عمر محمد فتحي",
-      "phone": "01055556666",
-      "passwordHash": "07ce1d7ea3ff3e19cb425d6195daca09:fb53e3dca637c73b5d35f7b2f0aa51fc4db4bfd2fa584119f5b2c162435dbf00232a6fab681db5fec5f1c4ff5487b679d8881ac3f0711a7ff4bcd05c8fcc79f0",
-      "year": 3,
-      "role": "student",
-      "isProtected": false,
-      "points": 685,
-      "quizzesCompleted": 7,
-      "createdAt": "2026-11-15T20:08:10.408Z"
-    },
-    {
-      "id": "user-std-6",
-      "name": "سلمى إيهاب نبيل",
-      "phone": "01066667777",
-      "passwordHash": "a7dd0728386406139b12809bcabe6999:8e827fecb76c8377bef95f35774fd46685fddc77c05e1aa8cc92c14be9b3b3ca78c1da0da58f8b8840cf2f5fd57f4ed9ad45b0f88cbf4910739dd1ed5593a2db",
-      "year": 1,
-      "role": "student",
-      "isProtected": false,
-      "points": 640,
-      "quizzesCompleted": 6,
-      "createdAt": "2026-11-15T20:08:10.408Z"
-    },
-    {
       "id": "user-8cee58d4-9e53-469a-b948-ab1b7c6fbb2f",
       "name": "Mahmoud Haider Youseif",
       "email": "fmha1994@gmail.com",
@@ -102,36 +30,6 @@
     }
   ],
   "sessions": [
-    {
-      "token": "8bff67231da1ab8efb573ae3458de0aa3c6cc73f5ef8e81b57addab66ea33b03",
-      "userId": "user-founder-admin",
-      "createdAt": "2026-11-15T20:08:12.994Z"
-    },
-    {
-      "token": "3ca5a13d221bb53df3e0022cf93998c8577777b7cd1492a1c518f0fba892b907",
-      "userId": "user-founder-admin",
-      "createdAt": "2026-11-15T20:35:15.750Z"
-    },
-    {
-      "token": "29193fce79533aafb512f469e04cdbc41525bc7217106db14fcb71b9d2003c1e",
-      "userId": "user-founder-admin",
-      "createdAt": "2026-11-15T20:51:27.892Z"
-    },
-    {
-      "token": "11dae9bf8e564b0d72b3be3895815c0aeb227a7d205d202f6e511b5d82103cab",
-      "userId": "user-std-1",
-      "createdAt": "2026-11-15T20:51:28.023Z"
-    },
-    {
-      "token": "4325b5cfcba17cda59ad28e7908fff92df29d1b609e979be5963c060da483601",
-      "userId": "user-founder-admin",
-      "createdAt": "2026-11-15T21:08:42.232Z"
-    },
-    {
-      "token": "5eb561e22cee9dfdc003afe69330c7b65ea262dca3be2d786f9c97a335feb8de",
-      "userId": "user-std-1",
-      "createdAt": "2026-11-15T21:08:42.322Z"
-    },
     {
       "token": "d8bc0013ee277589a9ffb02067b9088c1617a1d85bd3833ebe3e9d31f3213093",
       "userId": "user-founder-admin",
@@ -233,9 +131,7 @@
       "description": "ملخص مركز يوضح الفروق الجوهرية بين البيانات الخطية والشبكية، أنظمة WGS84 و UTM، وأخطاء الإسقاط الخرائطي الشائعة.",
       "createdBy": "القائد — أدمن ماڤيا",
       "createdAt": "2026-11-15T20:08:10.408Z",
-      "viewedBy": [
-        "user-std-1"
-      ]
+      "viewedBy": []
     },
     {
       "id": "sum-2",
@@ -406,50 +302,7 @@
       ]
     }
   ],
-  "quizSubmissions": [
-    {
-      "id": "sub-a532abbd-6acb-4534-a922-15a61c3c56e0",
-      "quizId": "quiz-01434821-bf5f-4698-971a-3047792a47ce",
-      "courseId": "course-gis-101",
-      "userId": "user-std-1",
-      "score": 20,
-      "maxScore": 40,
-      "correctCount": 1,
-      "totalQuestions": 2,
-      "timeSpentSeconds": 42,
-      "breakdown": [
-        {
-          "questionId": "q-8100ed43-4b7f-425f-835e-521ec3fbacd4",
-          "question": "Q1?",
-          "options": [
-            "A",
-            "B",
-            "C",
-            "D"
-          ],
-          "selectedIndex": 1,
-          "correctIndex": 1,
-          "isCorrect": true,
-          "explanation": "B is correct"
-        },
-        {
-          "questionId": "q-e1ed32a9-2f94-449e-a6ed-256dee97df97",
-          "question": "Q2?",
-          "options": [
-            "1",
-            "2",
-            "3",
-            "4"
-          ],
-          "selectedIndex": 0,
-          "correctIndex": 2,
-          "isCorrect": false,
-          "explanation": "3 is correct"
-        }
-      ],
-      "submittedAt": "2026-11-15T21:08:42.440Z"
-    }
-  ],
+  "quizSubmissions": [],
   "learningLinks": [
     {
       "id": "learn-1",
@@ -569,16 +422,6 @@
       "userYear": 4,
       "text": "أهلاً بكم في منصة ماڤيا! هذه الساحة مخصصة للتواصل الفوري بين طلاب جميع الدفعات في GIS والبرمجة.",
       "createdAt": "2026-11-15T20:08:10.408Z"
-    },
-    {
-      "id": "msg-2",
-      "room": "year-4",
-      "userId": "user-std-1",
-      "userName": "أحمد طارق المنسي",
-      "userRole": "student",
-      "userYear": 4,
-      "text": "شباب دفعة رابعة، ملخص إعداد GeoServer موجود في قسم الكورسات وممتاز جداً لمشاريع التخرج.",
-      "createdAt": "2026-11-15T20:08:10.408Z"
     }
   ],
   "gpaTables": {},
@@ -615,41 +458,6 @@
           "type": "exam",
           "completed": false,
           "createdAt": "2026-11-15T20:35:15.765Z"
-        }
-      ]
-    },
-    "user-std-1": {
-      "enrolledCourseIds": [
-        "course-gis-101",
-        "course-gis-401",
-        "course-prog-402"
-      ],
-      "completedSummaryIds": [],
-      "lastLesson": {
-        "courseId": "course-gis-101",
-        "courseTitle": "مقدمة في نظم المعلومات الجغرافية (GIS)",
-        "lessonTitle": "اختبار: Automated Bank Quiz",
-        "updatedAt": "2026-11-15T21:08:42.441Z"
-      },
-      "studyMinutes": 450,
-      "tasks": [
-        {
-          "id": "task-2458fb6d-72de-4bcb-828d-99d7d5ca2efb",
-          "title": "مراجعة ملخصات مادة نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
-          "dueDate": "2026-11-18",
-          "courseTitle": "نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
-          "type": "task",
-          "completed": false,
-          "createdAt": "2026-11-15T20:51:28.099Z"
-        },
-        {
-          "id": "task-cb88e117-9ae6-4c46-a224-b42c0466e8a3",
-          "title": "الاستعداد للاختبار الشامل القادم",
-          "dueDate": "2026-11-21",
-          "courseTitle": "نظم المعلومات الجغرافية على الويب (Web GIS) والتحليل الشبكي",
-          "type": "exam",
-          "completed": false,
-          "createdAt": "2026-11-15T20:51:28.099Z"
         }
       ]
     },
@@ -690,22 +498,12 @@
       "2026-11-16": 1
     },
     "visitors": {
-      "verify-key-1": {
-        "visitorKey": "verify-key-1",
-        "lastVisitAt": "2026-11-15T20:51:28.033Z",
-        "visitCount": 0
-      },
       "user-founder-admin": {
         "visitorKey": "user-founder-admin",
         "userId": "user-founder-admin",
         "userName": "القائد — أدمن ماڤيا",
         "userYear": 4,
         "lastVisitAt": "2026-11-15T21:05:31.905Z",
-        "visitCount": 0
-      },
-      "v-e7fd93e6-7108-4b4d-9c9f-3b4b76237cad": {
-        "visitorKey": "v-e7fd93e6-7108-4b4d-9c9f-3b4b76237cad",
-        "lastVisitAt": "2026-11-15T21:06:42.883Z",
         "visitCount": 0
       },
       "v-23a8845b-8d2b-4314-b4f8-cf0092408262": {
@@ -729,26 +527,13 @@
   },
   "notifications": [
     {
-      "id": "notif-f85bbb8e-4025-4440-9c86-46f139827a8e",
-      "title": "اختبار جديد في مقدمة في نظم المعلومات الجغرافية (GIS)",
-      "message": "Automated Bank Quiz (10 دقيقة · 3 سؤال في البنك).",
-      "type": "exam",
-      "targetSection": "courses",
-      "year": 1,
-      "readBy": [],
-      "createdBy": "القائد — أدمن ماڤيا",
-      "createdAt": "2026-11-15T21:08:42.434Z"
-    },
-    {
       "id": "notif-welcome-mvia",
       "title": "أهلاً بكم في التحديث الجديد لمنصة MVIA",
       "message": "تم إضافة مشغل المحاضرات الاحترافي في قسم Learning ونظام الامتحانات المتطور ببنك الأسئلة العشوائي داخل كل مجلد.",
       "type": "general",
       "targetSection": "learning",
       "year": 0,
-      "readBy": [
-        "user-std-1"
-      ],
+      "readBy": [],
       "createdBy": "القائد — أدمن MVIA",
       "createdAt": "2026-11-15T21:08:30.152Z"
     },
@@ -759,9 +544,7 @@
       "type": "exam",
       "targetSection": "courses",
       "year": 0,
-      "readBy": [
-        "user-std-1"
-      ],
+      "readBy": [],
       "createdBy": "القائد — أدمن MVIA",
       "createdAt": "2026-11-15T21:08:30.152Z"
     }
@@ -785,27 +568,9 @@
       "createdAt": "2026-11-15T21:08:30.694Z"
     }
   ],
-  "lectureProgress": {
-    "user-std-1": {
-      "lec-gis-101": {
-        "lastPositionSeconds": 18,
-        "playbackRate": 1.5,
-        "updatedAt": "2026-11-15T21:08:42.408Z",
-        "notes": []
-      }
-    }
-  },
+  "lectureProgress": {},
   "supportTickets": [],
-  "errorLogs": [
-    {
-      "id": "err-41c0a630-f845-43ae-bf16-85becc9e34c6",
-      "source": "client",
-      "message": "WebSocket closed without opened.",
-      "path": "/",
-      "stack": "Error: WebSocket closed without opened.\n    at WebSocket.<anonymous> (https://ais-dev-lseb3ikjgtmca4424u3wzz-1008943062210.europe-west2.run.app/@vite/client:234:30)",
-      "createdAt": "2026-11-15T23:31:47.104Z"
-    }
-  ],
+  "errorLogs": [],
   "adminAuditLogs": [],
   "maintenance": {
     "enabled": false,
@@ -831,6 +596,7 @@
         "manage_learning",
         "manage_community",
         "manage_students",
+        "manage_user_notes",
         "manage_support",
         "view_sensitive_data"
       ],

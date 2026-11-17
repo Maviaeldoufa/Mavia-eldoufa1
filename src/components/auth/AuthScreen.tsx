@@ -19,6 +19,7 @@ import { Footer } from '../ui/Footer';
 import { GeoEngineeringBackground } from '../ui/GeoEngineeringBackground';
 import { GoldChip } from '../ui/GoldChip';
 import { MviaBrandMark } from '../ui/MviaBrandMark';
+import { PasswordInput } from '../ui/PasswordInput';
 import { SupportBar } from '../ui/SupportBar';
 import { TermsModal } from '../ui/TermsModal';
 
@@ -192,16 +193,16 @@ export function AuthScreen() {
               </GoldChip>
             </div>
 
-            {/* Larger Official Floating Logo & MVIA Engineer Hat Title */}
+            {/* Larger Official Floating Logo & MAVIA Engineer Hat Title */}
             <div className="flex flex-col items-center text-center space-y-3">
               <FloatingLogo size="lg" />
               <div className="space-y-1 flex flex-col items-center">
-                <h1 className="sr-only">MVIA</h1>
+                <h1 className="sr-only">MAVIA</h1>
                 <MviaBrandMark size="lg" />
                 <p className="text-xs text-[#D4AF37]">
                   {tr(
-                    'منصة MVIA التعليمية · GIS والبرمجة',
-                    'MVIA Educational Platform · GIS & Programming'
+                    'منصة MAVIA التعليمية · GIS والبرمجة',
+                    'MAVIA Educational Platform · GIS & Programming'
                   )}
                 </p>
               </div>
@@ -394,27 +395,26 @@ export function AuthScreen() {
                         </span>
                       )}
                     </div>
-                    <div className="relative">
-                      <Lock
-                        className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${
-                          fieldErrors.password ? 'text-amber-400' : 'text-[#A8A29E]'
-                        }`}
-                      />
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => {
-                          setPassword(e.target.value);
-                          clearFieldError('password');
-                        }}
-                        placeholder="••••••••"
-                        className={`w-full ps-10 pe-4 py-2.5 rounded-xl bg-[#121216] border text-sm text-[#F5F0E6] placeholder-[#6B6661] focus:outline-none transition-colors ${
-                          fieldErrors.password
-                            ? 'border-amber-400/80 bg-amber-950/15'
-                            : 'border-white/10 focus:border-[#D4AF37]'
-                        }`}
-                      />
-                    </div>
+                    <PasswordInput
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        clearFieldError('password');
+                      }}
+                      placeholder="••••••••"
+                      startIcon={
+                        <Lock
+                          className={`w-4 h-4 ${
+                            fieldErrors.password ? 'text-amber-400' : 'text-[#A8A29E]'
+                          }`}
+                        />
+                      }
+                      className={`w-full py-2.5 rounded-xl bg-[#121216] border text-sm text-[#F5F0E6] placeholder-[#6B6661] focus:outline-none transition-colors ${
+                        fieldErrors.password
+                          ? 'border-amber-400/80 bg-amber-950/15'
+                          : 'border-white/10 focus:border-[#D4AF37]'
+                      }`}
+                    />
                   </div>
 
                   {/* Academic Year */}
@@ -483,16 +483,13 @@ export function AuthScreen() {
                             'Admin Secret Activation Code'
                           )}
                         </label>
-                        <div className="relative">
-                          <KeyRound className="w-4 h-4 text-[#D4AF37] absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                          <input
-                            type="password"
-                            value={adminCode}
-                            onChange={(e) => setAdminCode(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full ps-10 pe-4 py-2 rounded-lg bg-[#09090B] border border-[#D4AF37]/40 text-sm text-[#F5F0E6] font-mono focus:outline-none focus:border-[#E5C158]"
-                          />
-                        </div>
+                        <PasswordInput
+                          value={adminCode}
+                          onChange={(e) => setAdminCode(e.target.value)}
+                          placeholder="••••••••"
+                          startIcon={<KeyRound className="w-4 h-4 text-[#D4AF37]" />}
+                          className="w-full py-2 rounded-lg bg-[#09090B] border border-[#D4AF37]/40 text-sm text-[#F5F0E6] font-mono focus:outline-none focus:border-[#E5C158]"
+                        />
                         <p className="text-[11px] text-[#A8A29E]">
                           {tr(
                             'يمنحك حساب الأدمن المحمي صلاحية إضافة/طرد الأعضاء وإضافة المواد والمجلدات والملخصات ولا يمكن لأي شخص طردك.',
@@ -596,27 +593,26 @@ export function AuthScreen() {
                         </span>
                       )}
                     </div>
-                    <div className="relative">
-                      <Lock
-                        className={`w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${
-                          fieldErrors.loginPassword ? 'text-amber-400' : 'text-[#A8A29E]'
-                        }`}
-                      />
-                      <input
-                        type="password"
-                        value={loginPassword}
-                        onChange={(e) => {
-                          setLoginPassword(e.target.value);
-                          clearFieldError('loginPassword');
-                        }}
-                        placeholder="••••••••"
-                        className={`w-full ps-10 pe-4 py-2.5 rounded-xl bg-[#121216] border text-sm text-[#F5F0E6] placeholder-[#6B6661] focus:outline-none transition-colors ${
-                          fieldErrors.loginPassword
-                            ? 'border-amber-400/80 bg-amber-950/15'
-                            : 'border-white/10 focus:border-[#D4AF37]'
-                        }`}
-                      />
-                    </div>
+                    <PasswordInput
+                      value={loginPassword}
+                      onChange={(e) => {
+                        setLoginPassword(e.target.value);
+                        clearFieldError('loginPassword');
+                      }}
+                      placeholder="••••••••"
+                      startIcon={
+                        <Lock
+                          className={`w-4 h-4 ${
+                            fieldErrors.loginPassword ? 'text-amber-400' : 'text-[#A8A29E]'
+                          }`}
+                        />
+                      }
+                      className={`w-full py-2.5 rounded-xl bg-[#121216] border text-sm text-[#F5F0E6] placeholder-[#6B6661] focus:outline-none transition-colors ${
+                        fieldErrors.loginPassword
+                          ? 'border-amber-400/80 bg-amber-950/15'
+                          : 'border-white/10 focus:border-[#D4AF37]'
+                      }`}
+                    />
                   </div>
                 </>
               )}
@@ -630,8 +626,8 @@ export function AuthScreen() {
                 {submitting
                   ? tr('جاري المعالجة...', 'Processing...')
                   : mode === 'register'
-                  ? tr('تسجيل والانضمام إلى MVIA', 'Register & Join MVIA')
-                  : tr('دخول إلى المنصة', 'Enter MVIA Platform')}
+                  ? tr('تسجيل والانضمام إلى MAVIA', 'Register & Join MAVIA')
+                  : tr('دخول إلى المنصة', 'Enter MAVIA Platform')}
               </GoldChip>
             </form>
 
@@ -642,7 +638,7 @@ export function AuthScreen() {
           </div>
         </div>
 
-        {/* Showcase Column with Large Floating MVIA Logo */}
+        {/* Showcase Column with Large Floating MAVIA Logo */}
         <div className="relative hidden lg:flex flex-col justify-between p-12 overflow-hidden border-s border-[#D4AF37]/20 bg-[#0D0D10]/90">
           <GeoEngineeringBackground variant="hero" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-[#09090B]/55 to-[#09090B]/30" />
@@ -670,8 +666,8 @@ export function AuthScreen() {
             </h2>
             <p className="text-sm text-[#C8C2B8] leading-relaxed">
               {tr(
-                'منصة MVIA مصممة خصيصاً لربط طلاب الفرق الأربع بمواد كل دفعة، مجلدات منظمة بأغلفة مخصصة، اختبارات تفاعلية بلوحة تصدر، حاسبة GPA، ومجتمع متكامل.',
-                'MVIA connects students across all 4 academic years with organized course folders, PDF libraries, interactive quizzes, a GPA calculator, and a live batch community.'
+                'منصة MAVIA مصممة خصيصاً لربط طلاب الفرق الأربع بمواد كل دفعة، مجلدات منظمة بأغلفة مخصصة، اختبارات تفاعلية بلوحة تصدر، حاسبة GPA، ومجتمع متكامل.',
+                'MAVIA connects students across all 4 academic years with organized course folders, PDF libraries, interactive quizzes, a GPA calculator, and a live batch community.'
               )}
             </p>
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/10">

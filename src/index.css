@@ -9,6 +9,11 @@
 @layer base {
   html {
     font-family: "Cairo", system-ui, sans-serif;
+    font-size: clamp(15.75px, 0.12vw + 15.5px, 16.5px);
+    line-height: 1.62;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     background-color: #09090B;
     color: #F5F0E6;
   }

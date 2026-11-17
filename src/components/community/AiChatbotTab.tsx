@@ -14,7 +14,7 @@ export function AiChatbotTab() {
   const { tr } = useLanguage();
 
   const SUGGESTIONS = [
-    tr('عرّفني على منصة MVIA وأقسامها', 'Introduce MVIA platform and its sections'),
+    tr('عرّفني على منصة MAVIA وأقسامها', 'Introduce MAVIA platform and its sections'),
     tr(
       'كيف أصل لملخصات واختبارات دفعتي؟',
       'How do I access my year summaries & quizzes?'
@@ -31,8 +31,8 @@ export function AiChatbotTab() {
       id: 'ai-welcome',
       role: 'model',
       text: tr(
-        'أهلاً بك في منصة MVIA! أنا المساعد الذكي الخاص بالمنصة. اسألني عن أي قسم، كيفية استخدام حاسبة الـ GPA، مواد GIS والبرمجة، أو طريقة جمع النقاط في لوحة التصدر.',
-        'Welcome to MVIA! I am your platform AI Assistant. Ask me about any section, the GPA calculator, GIS & Programming courses, or how leaderboard points work.'
+        'أهلاً بك في منصة MAVIA! أنا المساعد الذكي الخاص بالمنصة. اسألني عن أي قسم، كيفية استخدام حاسبة الـ GPA، مواد GIS والبرمجة، أو طريقة جمع النقاط في لوحة التصدر.',
+        'Welcome to MAVIA! I am your platform AI Assistant. Ask me about any section, the GPA calculator, GIS & Programming courses, or how leaderboard points work.'
       ),
     },
   ]);
@@ -137,7 +137,7 @@ export function AiChatbotTab() {
               {m.role === 'model' && (
                 <div className="flex items-center gap-1.5 text-xs text-[#E5C158] font-semibold mb-1">
                   <Bot className="w-3.5 h-3.5" />
-                  <span>{tr('مساعد MVIA الذكي', 'MVIA AI Guide')}</span>
+                  <span>{tr('مساعد MAVIA الذكي', 'MAVIA AI Guide')}</span>
                 </div>
               )}
               <p>{m.text}</p>
@@ -159,8 +159,8 @@ export function AiChatbotTab() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={tr(
-            'اسأل مساعد MVIA الذكي عن أي شيء في المنصة...',
-            'Ask MVIA AI Assistant anything about the platform...'
+            'اسأل مساعد MAVIA الذكي عن أي شيء في المنصة...',
+            'Ask MAVIA AI Assistant anything about the platform...'
           )}
           className="flex-1 px-4 py-2.5 rounded-xl bg-[#09090B] border border-white/10 text-sm text-[#F5F0E6] placeholder-[#6B6661] focus:outline-none focus:border-[#D4AF37]"
         />

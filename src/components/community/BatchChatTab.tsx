@@ -15,7 +15,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import type { ChatMessage } from '../../types';
-import { apiRequest, getStoredToken } from '../../utils/api';
+import { apiRequest, getStoredToken, resolveApiUrl, resolveWsUrl } from '../../utils/api';
 import { hasAdminPermission } from '../../utils/permissions';
 import { GoldChip } from '../ui/GoldChip';
 import { RankBadge } from '../ui/RankBadge';
@@ -57,6 +57,31 @@ function pickSupportedRecorderMime(): string | undefined {
   return undefined;
 }
 
+function getAudioFormatInfo(msg: ChatMessage): { label: string; mime: string; ext: string } {
+  const mime = (msg.audioMimeType || '').toLowerCase();
+  const nameExt = msg.audioName?.split('.').pop()?.toLowerCase() || '';
+  if (mime.includes('mpeg') || nameExt === 'mp3') {
+    return { label: 'MP3', mime: 'audio/mpeg', ext: 'mp3' };
+  }
+  if (mime.includes('webm') || nameExt === 'webm') {
+    return { label: 'WEBM', mime: 'audio/webm', ext: 'webm' };
+  }
+  if (mime.includes('ogg') || nameExt === 'ogg') {
+    return { label: 'OGG', mime: 'audio/ogg', ext: 'ogg' };
+  }
+  if (mime.includes('mp4') || mime.includes('m4a') || nameExt === 'm4a' || nameExt === 'mp4') {
+    return { label: 'M4A', mime: 'audio/mp4', ext: nameExt || 'm4a' };
+  }
+  if (mime.includes('wav') || nameExt === 'wav') {
+    return { label: 'WAV', mime: 'audio/wav', ext: 'wav' };
+  }
+  return {
+    label: (nameExt || 'AUDIO').toUpperCase(),
+    mime: msg.audioMimeType || 'audio/mpeg',
+    ext: nameExt || 'mp3',
+  };
+}
+
 export function BatchChatTab() {
   const { user } = useAuth();
   const { tr, formatYear } = useLanguage();
@@ -64,7 +89,9 @@ export function BatchChatTab() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [onlineCount, setOnlineCount] = useState<number>(1);
   const [connected, setConnected] = useState<boolean>(false);
+  const [restReady, setRestReady] = useState<boolean>(false);
   const [input, setInput] = useState('');
+  const [sendingText, setSendingText] = useState(false);
   const [modFeedback, setModFeedback] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
@@ -124,10 +151,9 @@ export function BatchChatTab() {
     const token = getStoredToken();
     if (!token) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/chat?token=${encodeURIComponent(
-      token
-    )}&room=${encodeURIComponent(roomRef.current)}`;
+    const wsUrl = resolveWsUrl(
+      `/ws/chat?token=${encodeURIComponent(token)}&room=${encodeURIComponent(roomRef.current)}`
+    );
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -206,6 +232,44 @@ export function BatchChatTab() {
       wsRef.current.send(JSON.stringify({ type: 'chat:join', room }));
     }
   }, [room]);
+
+  // Initial REST load + automatic REST polling fallback when WebSocket is unavailable (e.g. Vercel Serverless)
+  useEffect(() => {
+    const token = getStoredToken();
+    if (!token) return;
+
+    let cancelled = false;
+    const syncRoomViaRest = async () => {
+      try {
+        const res = await apiRequest<{ messages: ChatMessage[] }>(
+          `/api/community/chat/${encodeURIComponent(room)}`
+        );
+        if (!cancelled && Array.isArray(res.messages)) {
+          setMessages(res.messages);
+          setRestReady(true);
+        }
+      } catch {
+        // Keep current messages cleanly on transient network blips
+      }
+    };
+
+    void syncRoomViaRest();
+
+    if (connected) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const timer = window.setInterval(() => {
+      void syncRoomViaRest();
+    }, 3500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [room, connected]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -429,46 +493,70 @@ export function BatchChatTab() {
       return;
     }
 
-    if (
-      !input.trim() ||
-      !wsRef.current ||
-      wsRef.current.readyState !== WebSocket.OPEN
-    ) {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({ type: 'chat:send', room, text: trimmed })
+      );
+      setInput('');
       return;
     }
-    wsRef.current.send(
-      JSON.stringify({ type: 'chat:send', room, text: input.trim() })
-    );
-    setInput('');
+
+    setSendingText(true);
+    try {
+      const res = await apiRequest<{ message: ChatMessage }>(
+        `/api/community/chat/${encodeURIComponent(room)}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ text: trimmed }),
+        }
+      );
+      setMessages((prev) =>
+        prev.some((m) => m.id === res.message.id) ? prev : [...prev, res.message]
+      );
+      setInput('');
+    } catch (err) {
+      setChatError(
+        err instanceof Error
+          ? err.message
+          : tr('تعذر إرسال الرسالة الآن.', 'Failed to send message.')
+      );
+    } finally {
+      setSendingText(false);
+    }
   };
 
   const handleShareAudio = async (msg: ChatMessage) => {
     if (!msg.audioUrl) return;
     setShareFeedback(null);
     setSharingMsgId(msg.id);
-    const absoluteUrl = new URL(msg.audioUrl, window.location.origin).toString();
-    const downloadName = msg.audioName || `mvia-voice-${msg.id.slice(0, 8)}.mp3`;
+    const resolvedAudioUrl = resolveApiUrl(msg.audioUrl);
+    const absoluteUrl = new URL(resolvedAudioUrl, window.location.origin).toString();
+    const audioFmt = getAudioFormatInfo(msg);
+    const downloadName = msg.audioName || `mvia-voice-${msg.id.slice(0, 8)}.${audioFmt.ext}`;
 
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
-        const res = await fetch(msg.audioUrl);
+        const res = await fetch(resolvedAudioUrl);
         if (res.ok) {
           const blob = await res.blob();
-          const file = new File([blob], downloadName, { type: 'audio/mpeg' });
+          const file = new File([blob], downloadName, { type: audioFmt.mime });
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
-              title: tr('تسجيل صوتي من منصة MVIA', 'MVIA Batch Voice Note'),
-              text: msg.text || `${msg.userName} — ${tr('شات الدفعة MVIA', 'MVIA Batch Chat')}`,
+              title: tr('تسجيل صوتي من منصة MAVIA', 'MAVIA Batch Voice Note'),
+              text: msg.text || `${msg.userName} — ${tr('شات الدفعة MAVIA', 'MAVIA Batch Chat')}`,
             });
             setShareFeedback(
-              tr('تم فتح نافذة مشاركة الملف الصوتي (MP3) بنجاح.', 'Audio file share sheet opened.')
+              tr(`تم فتح نافذة مشاركة الملف الصوتي (${audioFmt.label}) بنجاح.`, 'Audio file share sheet opened.')
             );
             return;
           }
         }
         await navigator.share({
-          title: tr('ملف صوتي من منصة MVIA', 'MVIA Voice Message'),
+          title: tr('ملف صوتي من منصة MAVIA', 'MAVIA Voice Message'),
           text: msg.text || `${msg.userName}`,
           url: absoluteUrl,
         });
@@ -575,12 +663,14 @@ export function BatchChatTab() {
         <div className="flex items-center gap-2 text-xs text-[#A8A29E] shrink-0">
           <span
             className={`w-2 h-2 rounded-full ${
-              connected ? 'bg-emerald-400' : 'bg-amber-500'
+              connected || restReady ? 'bg-emerald-400' : 'bg-amber-500'
             }`}
           />
           <span>
             {connected
               ? tr('متصل مباشر', 'Live Connected')
+              : restReady
+              ? tr('مزامنة REST مباشرة', 'Live REST Sync')
               : tr('جاري الاتصال...', 'Connecting...')}
           </span>
           <span aria-hidden="true">·</span>
@@ -605,12 +695,13 @@ export function BatchChatTab() {
         ) : (
           messages.map((msg) => {
             const isMine = msg.userId === user?.id;
-            const absoluteAudioUrl = msg.audioUrl
-              ? new URL(msg.audioUrl, window.location.origin).toString()
+            const resolvedAudioUrl = msg.audioUrl ? resolveApiUrl(msg.audioUrl) : '';
+            const absoluteAudioUrl = resolvedAudioUrl
+              ? new URL(resolvedAudioUrl, window.location.origin).toString()
               : '';
             const shareText = msg.text
               ? `${msg.text} — ${absoluteAudioUrl}`
-              : `${tr('استمع للمقطع الصوتي من منصة MVIA', 'Listen to voice message from MVIA')}: ${absoluteAudioUrl}`;
+              : `${tr('استمع للمقطع الصوتي من منصة MAVIA', 'Listen to voice message from MAVIA')}: ${absoluteAudioUrl}`;
             const whatsappHref = msg.audioUrl
               ? `https://wa.me/?text=${encodeURIComponent(shareText)}`
               : '';
@@ -618,7 +709,7 @@ export function BatchChatTab() {
               ? `https://t.me/share/url?url=${encodeURIComponent(
                   absoluteAudioUrl
                 )}&text=${encodeURIComponent(
-                  msg.text || `${msg.userName} — ${tr('رسالة صوتية MVIA', 'MVIA Voice Message')}`
+                  msg.text || `${msg.userName} — ${tr('رسالة صوتية MAVIA', 'MAVIA Voice Message')}`
                 )}`
               : '';
 
@@ -682,71 +773,74 @@ export function BatchChatTab() {
                     </p>
                   )}
 
-                  {msg.audioUrl && (
-                    <div className="p-2.5 rounded-lg bg-[#09090B]/80 border border-white/10 space-y-2">
-                      <div className="flex items-center justify-between gap-2 text-[11px] text-[#C8C2B8]">
-                        <span className="inline-flex items-center gap-1.5 truncate">
-                          <Volume2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
-                          <span className="truncate">
-                            {msg.audioName || tr('تسجيل صوتي', 'Voice Note')}
+                  {msg.audioUrl && (() => {
+                    const audioFmt = getAudioFormatInfo(msg);
+                    return (
+                      <div className="p-2.5 rounded-lg bg-[#09090B]/80 border border-white/10 space-y-2">
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-[#C8C2B8]">
+                          <span className="inline-flex items-center gap-1.5 truncate">
+                            <Volume2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                            <span className="truncate">
+                              {msg.audioName || tr('تسجيل صوتي', 'Voice Note')}
+                            </span>
                           </span>
-                        </span>
-                        <span className="font-mono tabular-nums text-[10px] text-[#A8A29E] shrink-0">
-                          MP3
-                          {msg.audioDurationSeconds
-                            ? ` · ${formatDuration(msg.audioDurationSeconds)}`
-                            : ''}
-                          {msg.audioSize ? ` · ${formatBytes(msg.audioSize)}` : ''}
-                        </span>
+                          <span className="font-mono tabular-nums text-[10px] text-[#A8A29E] shrink-0">
+                            {audioFmt.label}
+                            {msg.audioDurationSeconds
+                              ? ` · ${formatDuration(msg.audioDurationSeconds)}`
+                              : ''}
+                            {msg.audioSize ? ` · ${formatBytes(msg.audioSize)}` : ''}
+                          </span>
+                        </div>
+
+                        <audio
+                          controls
+                          preload="metadata"
+                          src={resolvedAudioUrl}
+                          className="w-full min-w-[210px] sm:min-w-[270px] h-9"
+                        />
+
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px]">
+                          <button
+                            type="button"
+                            disabled={sharingMsgId === msg.id}
+                            onClick={() => handleShareAudio(msg)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#151519] border border-[#D4AF37]/35 text-[#E5C158] hover:bg-[#D4AF37] hover:text-[#09090B] transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <Share2 className="w-3 h-3" />
+                            <span>{tr('مشاركة الملف', 'Share File')}</span>
+                          </button>
+
+                          <a
+                            href={whatsappHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-950/60 border border-emerald-500/35 text-emerald-200 hover:bg-emerald-600 hover:text-white transition-colors"
+                          >
+                            <span>{tr('واتساب', 'WhatsApp')}</span>
+                          </a>
+
+                          <a
+                            href={telegramHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-sky-950/60 border border-sky-500/35 text-sky-200 hover:bg-sky-600 hover:text-white transition-colors"
+                          >
+                            <span>{tr('تيليجرام', 'Telegram')}</span>
+                          </a>
+
+                          <a
+                            href={resolvedAudioUrl}
+                            download={msg.audioName || `mvia-voice.${audioFmt.ext}`}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#151519] border border-white/10 text-[#C8C2B8] hover:border-[#D4AF37] hover:text-[#E5C158] transition-colors"
+                          >
+                            <Download className="w-3 h-3" />
+                            <span>{tr(`تنزيل ${audioFmt.label}`, `Download ${audioFmt.label}`)}</span>
+                          </a>
+                        </div>
                       </div>
-
-                      <audio
-                        controls
-                        preload="metadata"
-                        src={msg.audioUrl}
-                        className="w-full min-w-[210px] sm:min-w-[270px] h-9"
-                      />
-
-                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px]">
-                        <button
-                          type="button"
-                          disabled={sharingMsgId === msg.id}
-                          onClick={() => handleShareAudio(msg)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#151519] border border-[#D4AF37]/35 text-[#E5C158] hover:bg-[#D4AF37] hover:text-[#09090B] transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                          <Share2 className="w-3 h-3" />
-                          <span>{tr('مشاركة الملف', 'Share File')}</span>
-                        </button>
-
-                        <a
-                          href={whatsappHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-950/60 border border-emerald-500/35 text-emerald-200 hover:bg-emerald-600 hover:text-white transition-colors"
-                        >
-                          <span>{tr('واتساب', 'WhatsApp')}</span>
-                        </a>
-
-                        <a
-                          href={telegramHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-sky-950/60 border border-sky-500/35 text-sky-200 hover:bg-sky-600 hover:text-white transition-colors"
-                        >
-                          <span>{tr('تيليجرام', 'Telegram')}</span>
-                        </a>
-
-                        <a
-                          href={msg.audioUrl}
-                          download={msg.audioName || 'mvia-voice.mp3'}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#151519] border border-white/10 text-[#C8C2B8] hover:border-[#D4AF37] hover:text-[#E5C158] transition-colors"
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>{tr('تنزيل MP3', 'Download MP3')}</span>
-                        </a>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             );
@@ -898,8 +992,9 @@ export function BatchChatTab() {
           active={true}
           disabled={
             uploadingAudio ||
+            sendingText ||
             isRecording ||
-            (!pendingAudio && (!connected || !input.trim()))
+            (!pendingAudio && !input.trim())
           }
           className="px-5 py-2.5"
         >
@@ -907,6 +1002,8 @@ export function BatchChatTab() {
           <span>
             {uploadingAudio
               ? tr('جاري التحويل والإرسال...', 'Converting & Sending...')
+              : sendingText
+              ? tr('جاري الإرسال...', 'Sending...')
               : pendingAudio
               ? tr('إرسال الصوت', 'Send Audio')
               : tr('إرسال', 'Send')}

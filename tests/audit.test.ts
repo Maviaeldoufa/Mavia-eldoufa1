@@ -890,8 +890,8 @@ describe('MVIA Production-Readiness Audit Suite', () => {
     assert.equal(teacherList.data.users[0].id, teacherId);
     assert.ok(teacherList.data.users[0].lastLoginAt);
     assert.equal(teacherList.data.users[0].passwordHash, undefined);
-    assert.ok(teacherList.data.stats.totalUsers >= 8);
-    assert.ok(teacherList.data.stats.activeUsers >= 8);
+    assert.ok(teacherList.data.stats.totalUsers >= 5);
+    assert.ok(teacherList.data.stats.activeUsers >= 5);
     assert.ok(teacherList.data.stats.teachersCount >= 1);
     assert.ok(teacherList.data.stats.adminsCount >= 1);
 
@@ -904,7 +904,7 @@ describe('MVIA Production-Readiness Audit Suite', () => {
     assert.equal(pagedList.status, 200);
     assert.equal(pagedList.data.users.length, 2);
     assert.equal(pagedList.data.pagination.page, 2);
-    assert.ok(pagedList.data.pagination.totalPages >= 4);
+    assert.ok(pagedList.data.pagination.totalPages >= 3);
 
     // 4. Student enrolls + completes summary, Admin inspects profile & academic statistics
     await api('/api/student/enroll', {

@@ -14,13 +14,21 @@ import type {
   UserRankBadge,
 } from './types.ts';
 
+import {
+  isSupabaseDbEnabled,
+  loadLatestStateFromSupabase,
+  saveStateToSupabase,
+} from './supabase.ts';
+import { IS_VERCEL, UPLOADS_DIR } from './storage.ts';
+export { UPLOADS_DIR };
+
+const BUNDLED_DB_FILE = path.resolve(process.cwd(), 'data', 'mafia-db.json');
 const DB_FILE = process.env.MVIA_DB_FILE
   ? path.resolve(process.env.MVIA_DB_FILE)
-  : path.resolve(process.cwd(), 'data', 'mafia-db.json');
+  : IS_VERCEL
+  ? path.resolve('/tmp', 'mavia-runtime', 'mafia-db.json')
+  : BUNDLED_DB_FILE;
 const DATA_DIR = path.dirname(DB_FILE);
-export const UPLOADS_DIR = process.env.MVIA_UPLOADS_DIR
-  ? path.resolve(process.env.MVIA_UPLOADS_DIR)
-  : path.resolve(process.cwd(), 'uploads');
 
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 const MAX_BACKUP_FILES = 10;
@@ -31,6 +39,9 @@ export function getEmailDeliveryConfig(): {
   apiKey: string;
   fromEmail: string;
 } {
+  if ((process.env.EMAIL_ENABLED || '').trim().toLowerCase() === 'false') {
+    return { enabled: false, apiKey: '', fromEmail: '' };
+  }
   const apiKey = process.env.RESEND_API_KEY?.trim() || '';
   const fromEmail = process.env.EMAIL_FROM?.trim() || '';
   if (!apiKey || !fromEmail) {
@@ -67,6 +78,7 @@ export const ALL_ADMIN_PERMISSIONS: AdminPermissionKey[] = [
   'manage_learning',
   'manage_community',
   'manage_students',
+  'manage_user_notes',
   'manage_support',
   'view_sensitive_data',
 ];
@@ -120,6 +132,12 @@ export const ADMIN_PERMISSIONS_CATALOG: Array<{
     labelAr: 'إدارة حسابات الطلاب والحظر',
     labelEn: 'Manage Students & Moderation',
     descriptionAr: 'عرض دليل المستخدمين ومتابعة التقدم الأكاديمي وتفعيل أو حظر الحسابات.',
+  },
+  {
+    key: 'manage_user_notes',
+    labelAr: 'الدخول لبروفايلات المستخدمين وكتابة الملاحظات',
+    labelEn: 'User Profiles & Admin Notes',
+    descriptionAr: 'الدخول على بروفايلات المستخدمين وكتابة ملاحظات إدارية لهم مع متابعة تفاعلهم بالرياكت.',
   },
   {
     key: 'manage_support',
@@ -346,98 +364,25 @@ export function toLeaderboardUser(user: User): SafeUser {
 
 function buildSeedData(): DatabaseSchema {
   const now = new Date().toISOString();
+  const bootstrapAdminPass =
+    process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim() ||
+    crypto.randomBytes(32).toString('hex');
+  const bootstrapAdminEmail =
+    process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() || '';
 
   const users: User[] = [
     {
       id: 'user-founder-admin',
-      name: 'القائد — أدمن MVIA',
-      email: 'admin@mvia.edu',
-      phone: '01000000000',
-      passwordHash: hashPassword('admin123'),
+      name: 'القائد — أدمن ماڤيا',
+      email: bootstrapAdminEmail,
+      phone: '',
+      passwordHash: hashPassword(bootstrapAdminPass),
       year: 4,
       role: 'admin',
       adminRankId: 'rank-super-admin',
       isProtected: true,
-      points: 980,
-      quizzesCompleted: 12,
-      createdAt: now,
-    },
-    {
-      id: 'user-std-1',
-      name: 'أحمد طارق المنسي',
-      email: 'ahmed.tarek@mavia.edu',
-      phone: '01011112222',
-      passwordHash: hashPassword('123456'),
-      year: 4,
-      role: 'student',
-      isProtected: false,
-      points: 890,
-      quizzesCompleted: 10,
-      createdAt: now,
-    },
-    {
-      id: 'user-std-2',
-      name: 'مريم حسام الدين',
-      email: 'mariam.hossam@mavia.edu',
-      phone: '01022223333',
-      passwordHash: hashPassword('123456'),
-      year: 3,
-      role: 'student',
-      isProtected: false,
-      points: 840,
-      quizzesCompleted: 9,
-      createdAt: now,
-    },
-    {
-      id: 'user-std-3',
-      name: 'يوسف خالد الشناوي',
-      email: 'youssef.khaled@mavia.edu',
-      phone: '01033334444',
-      passwordHash: hashPassword('123456'),
-      year: 2,
-      role: 'student',
-      isProtected: false,
-      points: 760,
-      quizzesCompleted: 8,
-      createdAt: now,
-    },
-    {
-      id: 'user-std-4',
-      name: 'نورهان عبد الرحمن',
-      email: 'norhan.abdelrahman@mavia.edu',
-      phone: '01044445555',
-      passwordHash: hashPassword('123456'),
-      year: 1,
-      role: 'student',
-      isProtected: false,
-      points: 710,
-      quizzesCompleted: 7,
-      createdAt: now,
-    },
-    {
-      id: 'user-std-5',
-      name: 'عمر محمد فتحي',
-      email: 'omar.fathy@mavia.edu',
-      phone: '01055556666',
-      passwordHash: hashPassword('123456'),
-      year: 3,
-      role: 'student',
-      isProtected: false,
-      points: 685,
-      quizzesCompleted: 7,
-      createdAt: now,
-    },
-    {
-      id: 'user-std-6',
-      name: 'سلمى إيهاب نبيل',
-      email: 'salma.ehab@mavia.edu',
-      phone: '01066667777',
-      passwordHash: hashPassword('123456'),
-      year: 1,
-      role: 'student',
-      isProtected: false,
-      points: 640,
-      quizzesCompleted: 6,
+      points: 0,
+      quizzesCompleted: 0,
       createdAt: now,
     },
   ];
@@ -539,6 +484,7 @@ function buildSeedData(): DatabaseSchema {
       courseId: 'course-gis-101',
       name: 'مجلد المراجعة الشاملة وبنك الأسئلة',
       description: 'يحتوي على ملخص الأساسيات مع اختبار تفاعلي من بنك الأسئلة العشوائي بمؤقت.',
+      viewedBy: [],
       createdAt: now,
     },
   ];
@@ -868,20 +814,10 @@ function buildSeedData(): DatabaseSchema {
       id: 'msg-1',
       room: 'general',
       userId: 'user-founder-admin',
-      userName: 'القائد — أدمن MVIA',
+      userName: 'القائد — أدمن ماڤيا',
       userRole: 'admin' as const,
       userYear: 4 as const,
-      text: 'أهلاً بكم في منصة MVIA! هذه الساحة مخصصة للتواصل الفوري بين طلاب جميع الدفعات في GIS والبرمجة.',
-      createdAt: now,
-    },
-    {
-      id: 'msg-2',
-      room: 'year-4',
-      userId: 'user-std-1',
-      userName: 'أحمد طارق المنسي',
-      userRole: 'student' as const,
-      userYear: 4 as const,
-      text: 'شباب دفعة رابعة، ملخص إعداد GeoServer موجود في قسم الكورسات وممتاز جداً لمشاريع التخرج.',
+      text: 'أهلاً بكم في منصة ماڤيا! هذه الساحة مخصصة للتواصل الفوري بين طلاب جميع الدفعات في GIS والبرمجة.',
       createdAt: now,
     },
   ];
@@ -916,6 +852,7 @@ function buildSeedData(): DatabaseSchema {
     courses,
     folders,
     summaries,
+    assignments: [],
     quizzes,
     quizSubmissions: [],
     announcements,
@@ -945,12 +882,15 @@ function buildSeedData(): DatabaseSchema {
     adminAuditLogs: [],
     adminRanks: buildDefaultAdminRanks(),
     adminOfficials: [],
+    supportTeam: [],
+    userProfileNotes: [],
   };
 }
 
 function normalizeLoadedStore(data: DatabaseSchema): DatabaseSchema {
   if (!data.studentProgress) data.studentProgress = {};
   if (!data.folders) data.folders = [];
+  if (!Array.isArray(data.assignments)) data.assignments = [];
   if (!data.announcements) data.announcements = [];
   if (!data.notifications) data.notifications = buildSeedData().notifications;
   if (!data.lectures) data.lectures = buildSeedData().lectures;
@@ -988,6 +928,8 @@ function normalizeLoadedStore(data: DatabaseSchema): DatabaseSchema {
     }
   }
   if (!Array.isArray(data.adminOfficials)) data.adminOfficials = [];
+  if (!Array.isArray(data.supportTeam)) data.supportTeam = [];
+  if (!Array.isArray(data.userProfileNotes)) data.userProfileNotes = [];
   for (const u of data.users || []) {
     if (u.role === 'admin' && u.isProtected && !u.adminRankId) {
       u.adminRankId = 'rank-super-admin';
@@ -1004,34 +946,64 @@ function normalizeLoadedStore(data: DatabaseSchema): DatabaseSchema {
 
 class MafiaStore {
   private data: DatabaseSchema;
+  private dirty = false;
+  private remoteVersion = 0;
+  private syncPromise: Promise<void> | null = null;
+  private flushPromise: Promise<void> | null = null;
 
   constructor() {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    }
-    if (!fs.existsSync(BACKUPS_DIR)) {
-      fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    for (const dir of [DATA_DIR, UPLOADS_DIR, BACKUPS_DIR]) {
+      try {
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+      } catch {
+        // Ignore directory creation errors on read-only serverless environments
+      }
     }
 
-    if (fs.existsSync(DB_FILE)) {
+    const seedSource = fs.existsSync(DB_FILE)
+      ? DB_FILE
+      : IS_VERCEL && fs.existsSync(BUNDLED_DB_FILE)
+      ? BUNDLED_DB_FILE
+      : null;
+
+    if (seedSource) {
       try {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        const raw = fs.readFileSync(seedSource, 'utf-8');
         this.data = normalizeLoadedStore(JSON.parse(raw) as DatabaseSchema);
+        if (seedSource !== DB_FILE) {
+          this.writeLocalCache();
+        }
       } catch {
         this.data = buildSeedData();
-        this.save();
+        this.writeLocalCache();
       }
     } else {
       this.data = buildSeedData();
-      this.save();
+      this.writeLocalCache();
+    }
+  }
+
+  private writeLocalCache(): void {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const tmpFile = `${DB_FILE}.tmp`;
+      fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8');
+      fs.renameSync(tmpFile, DB_FILE);
+    } catch {
+      // On read-only FS or before /tmp init, rely on in-memory + Supabase persistence
     }
   }
 
   public get(): DatabaseSchema {
     return this.data;
+  }
+
+  public isDirty(): boolean {
+    return this.dirty;
   }
 
   public replaceAll(nextData: DatabaseSchema): void {
@@ -1040,9 +1012,68 @@ class MafiaStore {
   }
 
   public save(): void {
-    const tmpFile = `${DB_FILE}.tmp`;
-    fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8');
-    fs.renameSync(tmpFile, DB_FILE);
+    this.writeLocalCache();
+    this.dirty = true;
+  }
+
+  public async ensureRemoteSynced(): Promise<void> {
+    if (!isSupabaseDbEnabled()) return;
+    if (this.syncPromise) return this.syncPromise;
+
+    this.syncPromise = (async () => {
+      try {
+        const res = await loadLatestStateFromSupabase(this.remoteVersion);
+        if (res.status === 'updated') {
+          this.data = normalizeLoadedStore(res.data);
+          this.dirty = false;
+          this.writeLocalCache();
+          if (res.version === 0) {
+            const initSave = await saveStateToSupabase(this.data, 1);
+            this.remoteVersion = initSave.ok ? 1 : 0;
+          } else {
+            this.remoteVersion = res.version;
+          }
+        } else if (res.status === 'empty') {
+          const seedSave = await saveStateToSupabase(this.data, 1);
+          if (seedSave.ok) {
+            this.remoteVersion = 1;
+            this.dirty = false;
+          }
+        }
+      } finally {
+        this.syncPromise = null;
+      }
+    })();
+
+    return this.syncPromise;
+  }
+
+  public async flushRemoteIfDirty(): Promise<void> {
+    if (!this.dirty || !isSupabaseDbEnabled()) return;
+    if (this.flushPromise) {
+      await this.flushPromise;
+      if (!this.dirty) return;
+    }
+
+    this.flushPromise = (async () => {
+      try {
+        while (this.dirty) {
+          this.dirty = false;
+          const nextVer = Math.max(1, this.remoteVersion + 1);
+          const result = await saveStateToSupabase(this.data, nextVer);
+          if (result.ok) {
+            this.remoteVersion = nextVer;
+          } else {
+            this.dirty = true;
+            break;
+          }
+        }
+      } finally {
+        this.flushPromise = null;
+      }
+    })();
+
+    return this.flushPromise;
   }
 }
 
@@ -1267,7 +1298,7 @@ export function recordAdminAudit(params: {
   return entry;
 }
 
-if (process.env.MVIA_DISABLE_AUTO_BACKUP !== '1') {
+if (!IS_VERCEL && process.env.MVIA_DISABLE_AUTO_BACKUP !== '1') {
   try {
     const existing = listBackupSnapshots();
     const latestMs = existing[0] ? new Date(existing[0].createdAt).getTime() : 0;

@@ -18,12 +18,12 @@ export function CommunitySection() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#F5F0E6]">
-            {tr('مجتمع MVIA (Community)', 'MVIA Community Hub')}
+            {tr('مجتمع MAVIA (Community)', 'MAVIA Community Hub')}
           </h1>
-          <p className="text-xs sm:text-sm text-[#A8A29E]">
+          <p className="text-sm text-[#A8A29E]">
             {tr(
               'تواصل مباشرة مع دفعتك داخل المنصة، انضم لجروبات الدفعات، أرسل تذكرة دعم فني، أو تحدث مع مساعد الذكاء الاصطناعي للتعرف على المنصة',
-              'Chat live with your batch inside MVIA, join official groups, open support tickets, or ask the AI Guide about the platform'
+              'Chat live with your batch inside MAVIA, join official groups, open support tickets, or ask the AI Guide about the platform'
             )}
           </p>
         </div>

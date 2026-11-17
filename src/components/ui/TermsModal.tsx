@@ -50,8 +50,8 @@ export function TermsModal({
       aria-modal="true"
       aria-label={
         tab === 'privacy'
-          ? tr('سياسة الخصوصية — منصة MVIA', 'Privacy Policy — MVIA Platform')
-          : tr('الشروط والأحكام وسياسة منصة MVIA', 'MVIA Terms & Conditions')
+          ? tr('سياسة الخصوصية — منصة MAVIA', 'Privacy Policy — MAVIA Platform')
+          : tr('الشروط والأحكام وسياسة منصة MAVIA', 'MAVIA Terms & Conditions')
       }
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
     >
@@ -68,8 +68,8 @@ export function TermsModal({
             <div>
               <h2 className="font-display text-lg sm:text-xl font-bold text-[#E5C158]">
                 {tab === 'privacy'
-                  ? tr('سياسة الخصوصية وحماية البيانات — MVIA', 'Privacy Policy — MVIA Platform')
-                  : tr('الشروط والأحكام — منصة MVIA', 'Terms & Conditions — MVIA Platform')}
+                  ? tr('سياسة الخصوصية وحماية البيانات — MAVIA', 'Privacy Policy — MAVIA Platform')
+                  : tr('الشروط والأحكام — منصة MAVIA', 'Terms & Conditions — MAVIA Platform')}
               </h2>
               <p className="text-xs text-[#A8A29E]">
                 {tab === 'privacy'
@@ -165,8 +165,8 @@ export function TermsModal({
               </div>
               <p className="text-[#C8C2B8]">
                 {tr(
-                  'حسابك شخصي ولا يجوز مشاركته مع الغير. جميع الملخصات والمحاضرات والاختبارات مخصصة لطلاب الدفعات على منصة MVIA، وتخضع إدارة الأعضاء لصلاحيات الأدمن الكاملة.',
-                  'Your account is personal and may not be shared. All summaries, lectures, and exams belong exclusively to MVIA students and are governed by Admin moderation.'
+                  'حسابك شخصي ولا يجوز مشاركته مع الغير. جميع الملخصات والمحاضرات والاختبارات مخصصة لطلاب الدفعات على منصة MAVIA، وتخضع إدارة الأعضاء لصلاحيات الأدمن الكاملة.',
+                  'Your account is personal and may not be shared. All summaries, lectures, and exams belong exclusively to MAVIA students and are governed by Admin moderation.'
                 )}
               </p>
             </div>
@@ -182,8 +182,8 @@ export function TermsModal({
               </div>
               <p className="text-[#C8C2B8]">
                 {tr(
-                  'تجمع منصة MVIA فقط البيانات الأساسية اللازمة لتشغيل حسابك الأكاديمي: الاسم، البريد الإلكتروني، رقم الهاتف، الفرقة الدراسية، درجات الاختبارات، التقدم في الدروس، وملاحظات المحاضرات. لا يتم بيع أو مشاركة بيانات الطلاب مع أي أطراف خارجية.',
-                  'MVIA collects only essential data required to run your academic account: name, email, phone number, academic year, quiz scores, lesson progress, and lecture notes. Student data is never sold or shared with third-party advertisers.'
+                  'تجمع منصة MAVIA فقط البيانات الأساسية اللازمة لتشغيل حسابك الأكاديمي: الاسم، البريد الإلكتروني، رقم الهاتف، الفرقة الدراسية، درجات الاختبارات، التقدم في الدروس، وملاحظات المحاضرات. لا يتم بيع أو مشاركة بيانات الطلاب مع أي أطراف خارجية.',
+                  'MAVIA collects only essential data required to run your academic account: name, email, phone number, academic year, quiz scores, lesson progress, and lecture notes. Student data is never sold or shared with third-party advertisers.'
                 )}
               </p>
             </div>
@@ -229,7 +229,7 @@ export function TermsModal({
             <span>
               {tr(
                 'الالتزام بهذه السياسات يضمن بيئة تعليمية آمنة ومحترمة للجميع.',
-                'Following these policies keeps MVIA safe, private, and productive for everyone.'
+                'Following these policies keeps MAVIA safe, private, and productive for everyone.'
               )}
             </span>
           </div>

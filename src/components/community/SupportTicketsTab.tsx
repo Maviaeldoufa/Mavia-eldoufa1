@@ -117,7 +117,7 @@ export function SupportTicketsTab() {
         <p className="text-xs text-[#A8A29E]">
           {tr(
             'أرسل أي مشكلة تقنية أو رابط معطل أو استفسار مباشرة داخل المنصة بدون الحاجة لإرسال رسائل خارجية.',
-            'Report technical issues, broken files, or questions privately inside MVIA.'
+            'Report technical issues, broken files, or questions privately inside MAVIA.'
           )}
         </p>
       </div>

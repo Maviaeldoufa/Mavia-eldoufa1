@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "data/mafia-db.json"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api?__mvia_path=$1"
+    },
+    {
+      "source": "/((?!api/|assets/|src/assets/|uploads/|favicon\\.ico).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
