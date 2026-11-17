@@ -10,10 +10,14 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node --test tests/audit.test.ts"
+    "test": "node --test tests/audit.test.ts tests/supabase-migration.test.ts tests/email-disabled.test.ts",
+    "db:migrate:dry": "tsx scripts/migrate-json-to-supabase.ts --dry-run",
+    "db:migrate": "tsx scripts/migrate-json-to-supabase.ts --execute",
+    "db:verify": "tsx scripts/migrate-json-to-supabase.ts --verify-only"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@supabase/supabase-js": "^2.119.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/multer": "^2.3.0",
     "@types/ws": "^8.18.2",
@@ -29,14 +33,14 @@
     "ws": "^8.23.0"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.28.2",
+    "esbuild": "^0.25.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "@types/express": "^4.17.21"
   }
 }
